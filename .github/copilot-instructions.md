@@ -1,8 +1,7 @@
 ---
-name: NDAX-Quantum-Engine-Instructions
-description: Comprehensive development guidelines for the NDAX Quantum Engine project
-applyTo:
-  - "**/*"
+name: NDAX-Quantum-Engine-Instructions-Legacy
+description: Legacy file - see .github/instructions/coding-standards.instructions.md
+applies_to: []
 ---
 
 > **⚠️ NOTICE:** This file has been moved to `.github/instructions/coding-standards.instructions.md` following GitHub's latest best practices.

@@ -1,7 +1,7 @@
 ---
 name: NDAX-Quantum-Engine-Instructions
 description: Comprehensive development guidelines for the NDAX Quantum Engine project
-applyTo:
+applies_to:
   - "**/*"
 ---
 
@@ -652,6 +652,123 @@ test(trading): add tests for order execution
 4. Update relevant documentation
 5. Request review from maintainers
 6. Squash commits before merging
+
+## Workflows and CI/CD
+
+### Available GitHub Actions Workflows
+
+The repository includes several automated workflows in `.github/workflows/`:
+
+**Core CI/CD:**
+- `ci.yml` - Continuous Integration (runs on every push/PR)
+- `ci-cd.yml` - Full CI/CD pipeline with deployment
+- `main.yml` - Main workflow orchestration
+
+**Testing and Quality:**
+- Runs `npm install` to install dependencies
+- Executes `npm test` for test suite (Jest with ES Modules)
+- Runs `npm run lint` for code quality checks
+- Builds the project with `npm run build`
+
+**Autonomous System:**
+- `chimera-autonomous.yml` - Health monitoring (every 6 hours)
+- `auto-fix.yml` - Automatic issue fixing
+- `autonomous-guardian.yml` - Safety monitoring (hourly)
+
+**Repository Maintenance:**
+- `branch-consolidation.yml` - Consolidates branches weekly
+- `consolidate.yml` - Repository consolidation
+- `ndax-endpoint-bot.yml` - NDAX API endpoint testing
+
+### Workflow Standards
+
+When creating or modifying workflows:
+
+**Structure:**
+```yaml
+name: Workflow Name
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  job-name:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: npm install
+      - name: Run tests
+        run: npm test
+```
+
+**Best Practices:**
+- Use specific action versions (e.g., `@v4`, not `@main`)
+- Cache dependencies to speed up builds: `actions/cache@v3`
+- Use secrets for sensitive data (never hardcode API keys)
+- Include timeout limits to prevent runaway workflows
+- Add clear step names for better debugging
+- Use matrix strategy for testing multiple Node.js versions if needed
+
+**Required Environment Variables:**
+```yaml
+env:
+  NODE_ENV: test
+  ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+  JWT_SECRET: ${{ secrets.JWT_SECRET }}
+```
+
+**Secrets Management:**
+- Store all API keys and secrets in GitHub repository secrets
+- Access via `${{ secrets.SECRET_NAME }}`
+- Never log or expose secret values
+- Use environment variables in workflows, not hardcoded values
+
+### Running Workflows Locally
+
+You can test workflows locally using [act](https://github.com/nektos/act):
+
+```bash
+# Install act
+brew install act  # macOS
+# or: curl https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
+
+# Run a specific workflow
+act -j test
+
+# Run with secrets
+act -j test -s GITHUB_TOKEN=your_token
+```
+
+### Common Workflow Commands
+
+**Manual Workflow Trigger:**
+```yaml
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+```
+
+**Scheduled Workflows:**
+```yaml
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+```
 
 ## Additional Resources
 
