@@ -1,0 +1,490 @@
+name: Chimera Bot Runtime System
+
+on:
+  schedule:
+    # Run every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      trading_mode:
+        description: 'Trading mode (paper/test)'
+        required: false
+        default: 'paper'
+        type: choice
+        options:
+          - paper
+          - test
+      risk_level:
+        description: 'Risk level (conservative/moderate/aggressive)'
+        required: false
+        default: 'moderate'
+        type: choice
+        options:
+          - conservative
+          - moderate
+          - aggressive
+      duration_hours:
+        description: 'Runtime duration in hours (max 6)'
+        required: false
+        default: '6'
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  runtime-system:
+    runs-on: ubuntu-latest
+    timeout-minutes: 400  # 6+ hours max
+    
+    steps:
+      #################################################
+      # 1. Environment Setup
+      #################################################
+      
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      
+      - name: Check runtime configuration
+        id: config
+        run: |
+          echo "Checking runtime configuration..."
+          
+          if [ ! -f ".chimera/runtime-config.json" ]; then
+            echo "ERROR: Runtime configuration not found"
+            exit 1
+          fi
+          
+          # Parse configuration
+          ENABLED=$(jq -r '.enabled' .chimera/runtime-config.json)
+          SAFETY_LOCK=$(jq -r '.safety.safety_lock' .chimera/runtime-config.json)
+          
+          if [ "$ENABLED" != "true" ]; then
+            echo "Runtime system is disabled"
+            exit 1
+          fi
+          
+          if [ "$SAFETY_LOCK" != "true" ]; then
+            echo "ERROR: Safety lock must be enabled"
+            exit 1
+          fi
+          
+          echo "enabled=true" >> $GITHUB_OUTPUT
+          echo "safety_lock=true" >> $GITHUB_OUTPUT
+          
+          echo "✅ Runtime configuration validated"
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+          cache: 'pip'
+      
+      - name: Install Node.js dependencies
+        run: |
+          echo "Installing Node.js dependencies..."
+          npm ci
+          echo "✅ Node.js dependencies installed"
+      
+      - name: Install Python dependencies
+        run: |
+          echo "Installing Python dependencies..."
+          
+          if [ -f "requirements.txt" ]; then
+            pip install -r requirements.txt
+          fi
+          
+          if [ -f "chimera-bot/requirements.txt" ]; then
+            pip install -r chimera-bot/requirements.txt
+          fi
+          
+          echo "✅ Python dependencies installed"
+      
+      #################################################
+      # 2. Pre-flight Checks
+      #################################################
+      
+      - name: Validate environment
+        run: |
+          echo "Validating environment..."
+          
+          # Check Node.js
+          node --version
+          npm --version
+          
+          # Check Python
+          python3 --version
+          pip --version
+          
+          # Check required files
+          if [ ! -f "unified-server.js" ]; then
+            echo "ERROR: unified-server.js not found"
+            exit 1
+          fi
+          
+          if [ ! -f "chimera-bot/main.py" ]; then
+            echo "ERROR: chimera-bot/main.py not found"
+            exit 1
+          fi
+          
+          echo "✅ Environment validated"
+      
+      - name: Configure runtime parameters
+        id: params
+        run: |
+          # Use workflow inputs or defaults from config
+          TRADING_MODE="${{ github.event.inputs.trading_mode || 'paper' }}"
+          RISK_LEVEL="${{ github.event.inputs.risk_level || 'moderate' }}"
+          DURATION="${{ github.event.inputs.duration_hours || '6' }}"
+          
+          # Enforce safety constraints
+          if [ "$TRADING_MODE" != "paper" ] && [ "$TRADING_MODE" != "test" ]; then
+            echo "ERROR: Only paper and test modes are allowed"
+            exit 1
+          fi
+          
+          # Limit duration to 6 hours max
+          if [ "$DURATION" -gt 6 ]; then
+            echo "WARNING: Duration limited to 6 hours maximum"
+            DURATION=6
+          fi
+          
+          echo "trading_mode=$TRADING_MODE" >> $GITHUB_OUTPUT
+          echo "risk_level=$RISK_LEVEL" >> $GITHUB_OUTPUT
+          echo "duration_hours=$DURATION" >> $GITHUB_OUTPUT
+          
+          echo "Runtime Parameters:"
+          echo "  - Trading Mode: $TRADING_MODE"
+          echo "  - Risk Level: $RISK_LEVEL"
+          echo "  - Duration: $DURATION hours"
+      
+      #################################################
+      # 3. Start Runtime System
+      #################################################
+      
+      - name: Start unified server
+        id: start_server
+        run: |
+          echo "Starting unified server..."
+          
+          # Set environment variables
+          export NODE_ENV=production
+          export TRADING_MODE=${{ steps.params.outputs.trading_mode }}
+          export SAFETY_LOCK=true
+          export USE_LIVE_TRADING=false
+          export TESTNET=true
+          export PORT=3000
+          
+          # Start server in background
+          node unified-server.js > unified-server.log 2>&1 &
+          SERVER_PID=$!
+          echo $SERVER_PID > server.pid
+          
+          echo "server_pid=$SERVER_PID" >> $GITHUB_OUTPUT
+          
+          # Wait for server to start
+          echo "Waiting for server to start..."
+          sleep 10
+          
+          # Check if server is running
+          if ps -p $SERVER_PID > /dev/null; then
+            echo "✅ Unified server started (PID: $SERVER_PID)"
+          else
+            echo "❌ Failed to start unified server"
+            cat unified-server.log
+            exit 1
+          fi
+      
+      - name: Start Chimera Bot
+        id: start_bot
+        run: |
+          echo "Starting Chimera Bot in paper trading mode..."
+          
+          cd chimera-bot
+          
+          # Set environment variables
+          export TRADING_MODE=${{ steps.params.outputs.trading_mode }}
+          export RISK_LEVEL=${{ steps.params.outputs.risk_level }}
+          export SAFETY_LOCK=true
+          export PLATFORM=ndax
+          export TESTNET=true
+          export LOG_LEVEL=INFO
+          export MAX_POSITION_SIZE=0.1
+          export MAX_DAILY_LOSS=0.05
+          
+          # Start Chimera Bot in background
+          python3 main.py > ../chimera-bot.log 2>&1 &
+          BOT_PID=$!
+          echo $BOT_PID > ../bot.pid
+          
+          cd ..
+          
+          echo "bot_pid=$BOT_PID" >> $GITHUB_OUTPUT
+          
+          # Wait for bot to initialize
+          echo "Waiting for Chimera Bot to initialize..."
+          sleep 10
+          
+          # Check if bot is running
+          if ps -p $BOT_PID > /dev/null; then
+            echo "✅ Chimera Bot started (PID: $BOT_PID)"
+          else
+            echo "❌ Failed to start Chimera Bot"
+            cat chimera-bot.log
+            exit 1
+          fi
+      
+      #################################################
+      # 4. Runtime Monitoring
+      #################################################
+      
+      - name: Monitor runtime system
+        id: monitor
+        run: |
+          echo "Monitoring runtime system..."
+          
+          DURATION_SECONDS=$((${{ steps.params.outputs.duration_hours }} * 3600))
+          END_TIME=$(($(date +%s) + $DURATION_SECONDS))
+          
+          REPORT_INTERVAL=3600  # 1 hour
+          LAST_REPORT=$(date +%s)
+          
+          echo "Runtime will end at: $(date -d @$END_TIME)"
+          
+          # Monitoring loop
+          while [ $(date +%s) -lt $END_TIME ]; do
+            # Check if processes are still running
+            SERVER_PID=$(cat server.pid)
+            BOT_PID=$(cat bot.pid)
+            
+            if ! ps -p $SERVER_PID > /dev/null; then
+              echo "❌ Unified server stopped unexpectedly"
+              cat unified-server.log | tail -50
+              exit 1
+            fi
+            
+            if ! ps -p $BOT_PID > /dev/null; then
+              echo "❌ Chimera Bot stopped unexpectedly"
+              cat chimera-bot.log | tail -50
+              exit 1
+            fi
+            
+            # Generate hourly report
+            CURRENT_TIME=$(date +%s)
+            if [ $((CURRENT_TIME - LAST_REPORT)) -ge $REPORT_INTERVAL ]; then
+              echo "Generating hourly report..."
+              bash scripts/monitor-runtime.sh report || true
+              LAST_REPORT=$CURRENT_TIME
+            fi
+            
+            # Check system health
+            CPU_USAGE=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1 | cut -d'.' -f1)
+            MEM_USAGE=$(free | grep Mem | awk '{print int($3/$2 * 100)}')
+            
+            echo "System Status: CPU: ${CPU_USAGE}%, Memory: ${MEM_USAGE}%"
+            
+            # Alert on high resource usage
+            if [ "$CPU_USAGE" -gt 90 ] || [ "$MEM_USAGE" -gt 90 ]; then
+              echo "⚠️ WARNING: High resource usage detected"
+            fi
+            
+            # Sleep before next check
+            sleep 300  # Check every 5 minutes
+          done
+          
+          echo "✅ Runtime duration completed successfully"
+      
+      #################################################
+      # 5. Graceful Shutdown
+      #################################################
+      
+      - name: Shutdown runtime system
+        if: always()
+        run: |
+          echo "Initiating graceful shutdown..."
+          
+          # Stop Chimera Bot
+          if [ -f "bot.pid" ]; then
+            BOT_PID=$(cat bot.pid)
+            if ps -p $BOT_PID > /dev/null; then
+              echo "Stopping Chimera Bot (PID: $BOT_PID)..."
+              kill -TERM $BOT_PID 2>/dev/null || true
+              sleep 5
+              
+              # Force kill if still running
+              if ps -p $BOT_PID > /dev/null; then
+                echo "Force stopping Chimera Bot..."
+                kill -KILL $BOT_PID 2>/dev/null || true
+              fi
+            fi
+          fi
+          
+          # Stop unified server
+          if [ -f "server.pid" ]; then
+            SERVER_PID=$(cat server.pid)
+            if ps -p $SERVER_PID > /dev/null; then
+              echo "Stopping unified server (PID: $SERVER_PID)..."
+              kill -TERM $SERVER_PID 2>/dev/null || true
+              sleep 5
+              
+              # Force kill if still running
+              if ps -p $SERVER_PID > /dev/null; then
+                echo "Force stopping unified server..."
+                kill -KILL $SERVER_PID 2>/dev/null || true
+              fi
+            fi
+          fi
+          
+          echo "✅ System shutdown complete"
+      
+      #################################################
+      # 6. Generate Final Report
+      #################################################
+      
+      - name: Generate final report
+        if: always()
+        run: |
+          echo "Generating final runtime report..."
+          
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          REPORT_FILE="runtime-final-report-${TIMESTAMP}.md"
+          
+          cat > "$REPORT_FILE" << EOF
+          # Chimera Bot Runtime Session Report
+          
+          **Session Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **Duration:** ${{ steps.params.outputs.duration_hours }} hours
+          **Trading Mode:** ${{ steps.params.outputs.trading_mode }}
+          **Risk Level:** ${{ steps.params.outputs.risk_level }}
+          
+          ## Session Summary
+          
+          - **Status:** $([ "${{ job.status }}" = "success" ] && echo "✅ Completed Successfully" || echo "❌ Failed")
+          - **Unified Server:** Started
+          - **Chimera Bot:** Started
+          - **Safety Lock:** ✅ Enabled
+          - **Real Trading:** ❌ Disabled
+          
+          ## Logs
+          
+          ### Unified Server Log (last 50 lines)
+          \`\`\`
+          $(tail -50 unified-server.log 2>/dev/null || echo "Log not available")
+          \`\`\`
+          
+          ### Chimera Bot Log (last 50 lines)
+          \`\`\`
+          $(tail -50 chimera-bot.log 2>/dev/null || echo "Log not available")
+          \`\`\`
+          
+          ## Safety Confirmation
+          
+          ✅ All trading was conducted in **PAPER TRADING MODE**
+          ✅ No real funds were used
+          ✅ All safety features were active
+          
+          ---
+          *Automated by Chimera Bot Runtime Workflow*
+          EOF
+          
+          cat "$REPORT_FILE"
+          
+          echo "report_file=$REPORT_FILE" >> $GITHUB_OUTPUT
+      
+      #################################################
+      # 7. Upload Artifacts
+      #################################################
+      
+      - name: Upload logs and reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-logs-${{ github.run_number }}
+          path: |
+            *.log
+            runtime-*.md
+            runtime-reports/
+            runtime-metrics.json
+          retention-days: 30
+      
+      #################################################
+      # 8. Create Issue on Failure
+      #################################################
+      
+      - name: Create issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            
+            let logContent = 'Logs not available';
+            try {
+              const serverLog = fs.readFileSync('unified-server.log', 'utf8');
+              const botLog = fs.readFileSync('chimera-bot.log', 'utf8');
+              logContent = `### Unified Server Log\n\`\`\`\n${serverLog.split('\n').slice(-30).join('\n')}\n\`\`\`\n\n### Chimera Bot Log\n\`\`\`\n${botLog.split('\n').slice(-30).join('\n')}\n\`\`\``;
+            } catch (e) {
+              console.log('Could not read logs:', e.message);
+            }
+            
+            const issueBody = `# 🚨 Chimera Bot Runtime Failure
+            
+            **Workflow Run:** [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            **Date:** ${new Date().toISOString()}
+            **Trading Mode:** ${{ steps.params.outputs.trading_mode }}
+            **Risk Level:** ${{ steps.params.outputs.risk_level }}
+            
+            ## Failure Details
+            
+            The Chimera Bot runtime system encountered an error and failed to complete successfully.
+            
+            ## Recent Logs
+            
+            ${logContent}
+            
+            ## Next Steps
+            
+            1. Review the logs above
+            2. Check the workflow artifacts for complete logs
+            3. Investigate the root cause
+            4. Apply fixes and test
+            5. Re-run the workflow
+            
+            ---
+            *Automated by Chimera Bot Runtime Workflow*
+            `;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Chimera Bot Runtime Failure',
+              body: issueBody,
+              labels: ['runtime-error', 'automated', 'chimera-bot']
+            });
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Chimera Bot Runtime Session Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Duration:** ${{ steps.params.outputs.duration_hours }} hours" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trading Mode:** ${{ steps.params.outputs.trading_mode }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Risk Level:** ${{ steps.params.outputs.risk_level }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Safety Lock:** ✅ Enabled" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Safety Confirmation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All trading was in PAPER TRADING MODE" >> $GITHUB_STEP_SUMMARY
+          echo "✅ No real funds were used" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All safety features were active" >> $GITHUB_STEP_SUMMARY

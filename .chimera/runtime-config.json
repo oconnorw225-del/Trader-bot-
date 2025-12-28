@@ -1,0 +1,114 @@
+{
+  "system_name": "Chimera Bot Runtime System",
+  "version": "1.0.0",
+  "enabled": true,
+  "mode": "paper",
+  "description": "Continuous runtime system for Chimera Bot with paper trading and monitoring",
+  
+  "runtime_settings": {
+    "schedule": "0 */6 * * *",
+    "duration_hours": 6,
+    "auto_restart": true,
+    "max_restarts": 3,
+    "restart_delay_seconds": 300,
+    "graceful_shutdown_timeout": 60
+  },
+  
+  "chimera_bot": {
+    "trading_mode": "paper",
+    "risk_level": "moderate",
+    "max_position_size": 0.1,
+    "max_daily_loss": 0.05,
+    "stop_loss_percent": 0.02,
+    "take_profit_percent": 0.05,
+    "max_open_positions": 5,
+    "max_trades_per_day": 20,
+    "reporting_interval": 3600,
+    "platform": "ndax",
+    "testnet": true,
+    "log_level": "INFO"
+  },
+  
+  "unified_server": {
+    "enabled": true,
+    "port": 3000,
+    "websocket_port": 8080,
+    "python_backend_url": "http://localhost:5000",
+    "metrics_port": 9090,
+    "health_check_interval": 300
+  },
+  
+  "monitoring": {
+    "health_check_interval": 300,
+    "performance_metrics": true,
+    "error_reporting": true,
+    "metrics_collection": true,
+    "log_aggregation": true,
+    "alert_on_errors": true,
+    "heartbeat_interval": 60
+  },
+  
+  "safety": {
+    "safety_lock": true,
+    "emergency_stop_enabled": true,
+    "max_runtime_hours": 6,
+    "auto_shutdown_on_error": true,
+    "require_manual_approval_for_trades": true,
+    "testnet_only": true,
+    "paper_trading_only": true,
+    "real_trading_disabled": true,
+    "max_api_calls_per_minute": 60,
+    "circuit_breaker_enabled": true
+  },
+  
+  "reporting": {
+    "hourly_reports": true,
+    "daily_summary": true,
+    "performance_metrics": true,
+    "trade_history": true,
+    "error_logs": true,
+    "report_format": "markdown",
+    "archive_reports": true,
+    "retention_days": 30
+  },
+  
+  "notifications": {
+    "github_issues": {
+      "enabled": true,
+      "create_on_error": true,
+      "create_on_completion": false
+    },
+    "workflow_artifacts": {
+      "enabled": true,
+      "include_logs": true,
+      "include_reports": true,
+      "include_metrics": true
+    }
+  },
+  
+  "environment": {
+    "node_env": "production",
+    "enable_debug": false,
+    "log_file": "chimera-runtime.log",
+    "metrics_file": "runtime-metrics.json",
+    "pid_file": "chimera-runtime.pid"
+  },
+  
+  "thresholds": {
+    "max_error_rate": 0.05,
+    "min_success_rate": 0.95,
+    "max_response_time_ms": 5000,
+    "max_memory_usage_mb": 2048,
+    "max_cpu_usage_percent": 80
+  },
+  
+  "features": {
+    "auto_recovery": true,
+    "position_management": true,
+    "risk_management": true,
+    "market_data_streaming": true,
+    "trade_execution": false,
+    "backtesting": false,
+    "paper_trading": true
+  }
+}
