@@ -1,0 +1,24 @@
+# CHIMERA-BOT Requirements
+# Python dependencies for the modular trading bot
+
+# Core dependencies
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# For potential future enhancements
+# Uncomment as needed:
+
+# Data analysis
+# numpy>=1.24.0
+# pandas>=2.0.0
+
+# Technical indicators
+# ta-lib>=0.4.0
+
+# Machine learning (if using AI features)
+# scikit-learn>=1.3.0
+# tensorflow>=2.13.0
+
+# Database (if needed for persistence)
+# sqlalchemy>=2.0.0
+# psycopg2-binary>=2.9.0
