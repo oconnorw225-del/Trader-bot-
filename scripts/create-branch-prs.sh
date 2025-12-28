@@ -13,7 +13,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Repository details
-REPO="oconnorw225-del/ndax-quantum-engine"
+REPO="oconnorw225-del/Trader-bot-"
 BASE_BRANCH="main"
 
 # Script directory
@@ -51,7 +51,7 @@ generate_pr_description() {
     
     # Check for conflicts
     merge_result=$(git merge-tree $(git merge-base "origin/$BASE_BRANCH" "origin/$branch" 2>/dev/null || echo "origin/$BASE_BRANCH") "origin/$BASE_BRANCH" "origin/$branch" 2>/dev/null || echo "")
-    if echo "$merge_result" | grep -q "<<<<<<< "; then
+    if grep -q "<<<<<<< " <<< "$merge_result" 2>/dev/null; then
         conflict_status="⚠️ **Has conflicts** - will need resolution"
     fi
     

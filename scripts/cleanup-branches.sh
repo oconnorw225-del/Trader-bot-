@@ -132,7 +132,7 @@ case $choice in
     2)
         print_section "Manual Cleanup Instructions"
         
-        echo "1. Go to: https://github.com/oconnorw225-del/ndax-quantum-engine/branches"
+        echo "1. Go to: https://github.com/oconnorw225-del/Trader-bot-/branches"
         echo ""
         echo "2. For each of the top 8 branches, create/review PRs:"
         for branch in "${TOP_8_BRANCHES[@]}"; do
@@ -153,7 +153,7 @@ case $choice in
         for branch in "${TOP_8_BRANCHES[@]}"; do
             echo ""
             echo "Branch: $branch"
-            echo "Compare: https://github.com/oconnorw225-del/ndax-quantum-engine/compare/main...$branch"
+            echo "Compare: https://github.com/oconnorw225-del/Trader-bot-/compare/main...$branch"
         done
         ;;
     4)
