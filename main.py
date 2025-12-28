@@ -4,7 +4,10 @@ Orchestrates the trading loop with paper/live mode controls
 Includes adaptive promotion/demotion system and comprehensive reporting
 """
 
+import os
 from platform.ndax_test import NDAXTestClient
+# Uncomment the line below to enable live trading (after adding NDAX API credentials to .env):
+# from platform.ndax_live import NDAXLiveClient
 from strategy.chimera_core import decide
 from execution.executor import execute
 from execution.promotion import (
@@ -28,12 +31,31 @@ def main():
     - After 3 consecutive good live runs (75%+ win rate), paper trading is SKIPPED
     - Platform prioritization for resource optimization
     """
-    # Initialize NDAX test client
-    client = NDAXTestClient()
+    # Initialize NDAX client based on environment configuration
+    # To enable LIVE trading:
+    # 1. Add your NDAX API credentials to .env file (see .env.example)
+    # 2. Uncomment the NDAXLiveClient import at the top of this file
+    # 3. Replace the client initialization below with: client = NDAXLiveClient()
+    
+    use_live = os.getenv('USE_LIVE_TRADING', 'false').lower() == 'true'
+    
+    if use_live:
+        print("⚠️  WARNING: Live trading mode requested")
+        print("⚠️  To enable live trading, you must:")
+        print("   1. Add NDAX API credentials to .env file")
+        print("   2. Uncomment 'from platform.ndax_live import NDAXLiveClient' at the top")
+        print("   3. Replace client initialization with: client = NDAXLiveClient()")
+        print("   4. Implement actual trading logic in strategy/chimera_core.py")
+        print("\n⚠️  Falling back to TEST mode for safety...\n")
+        client = NDAXTestClient()
+    else:
+        # Use test client for paper trading (safe mode)
+        client = NDAXTestClient()
+    
     platform = client.get_platform_info()
     print("Platform:", platform)
     print("Starting NDAX Quantum Engine with Adaptive Mode Switching...")
-    print("Mode: PAPER (will auto-promote after 15min with 70%+ win rate)")
+    print(f"Mode: {platform.get('mode', 'PAPER')} (will auto-promote after 15min with 70%+ win rate)")
     print("Adaptive: Returns to PAPER for 15min retraining if live performance drops")
     print("Smart Skip: After 3 consecutive good runs (75%+), paper training SKIPPED\n")
 
