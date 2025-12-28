@@ -1,0 +1,22 @@
+{
+  "name": "ndax-dashboard-testing",
+  "version": "2.0.0",
+  "description": "Testing area for NDAX Dashboard - Railway deployment ready",
+  "type": "module",
+  "main": "test-server.js",
+  "scripts": {
+    "start": "node test-server.js",
+    "dev": "NODE_ENV=development node test-server.js",
+    "test": "echo 'Dashboard testing active'"
+  },
+  "keywords": ["dashboard", "testing", "railway", "ndax"],
+  "author": "NDAX Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "dotenv": "^16.4.5"
+  }
+}

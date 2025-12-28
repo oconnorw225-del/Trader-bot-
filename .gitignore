@@ -1,0 +1,68 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+dashboard-logs.json
+
+# Testing
+coverage/
+.nyc_output/
+.pytest_cache/
+
+# Misc
+.cache/
+.tmp/
+tmp/
+temp/
+.autopilot/
+
+# Data directories (logs, configs, backups)
+data/logs/
+data/configs/
+data/backups/
+data/*.log
+
+# Results from endpoint testing
+results/
+*.result.json
+
+# Chimera output files (keep directories, ignore generated reports)
+output/*.json
+output/*.md
+output/*.csv
+output/history/*.json

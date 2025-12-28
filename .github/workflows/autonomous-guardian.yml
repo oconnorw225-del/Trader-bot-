@@ -1,0 +1,305 @@
+name: Autonomous Guardian
+
+on:
+  workflow_run:
+    workflows:
+      - "Chimera Autonomous Health Check"
+      - "Autonomous Auto-Fix"
+      - "Repository Maintenance"
+      - "Smart Repository Consolidation"
+    types:
+      - completed
+  schedule:
+    # Monitor every hour
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  actions: write
+
+jobs:
+  guardian:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Check kill switch status
+      id: killswitch
+      run: |
+        if [ -f ".chimera/AUTONOMOUS_DISABLED" ]; then
+          echo "status=disabled" >> $GITHUB_OUTPUT
+          echo "🛑 Kill switch is ACTIVE - All autonomous operations halted"
+        else
+          echo "status=enabled" >> $GITHUB_OUTPUT
+          echo "✅ Kill switch is INACTIVE - System operational"
+        fi
+    
+    - name: Read safety configuration
+      id: safety
+      run: |
+        if [ -f ".chimera/autonomous-config.json" ]; then
+          MAX_PRS=$(cat .chimera/autonomous-config.json | grep -o '"max_prs_per_day":[0-9]*' | grep -o '[0-9]*')
+          ROLLBACK=$(cat .chimera/autonomous-config.json | grep -o '"rollback_on_failure":[^,]*' | grep -o 'true\|false')
+          
+          echo "max_prs=${MAX_PRS:-10}" >> $GITHUB_OUTPUT
+          echo "rollback_enabled=${ROLLBACK:-true}" >> $GITHUB_OUTPUT
+        else
+          echo "max_prs=10" >> $GITHUB_OUTPUT
+          echo "rollback_enabled=true" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Check PR rate limit
+      if: steps.killswitch.outputs.status == 'enabled'
+      id: rate_check
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const maxPRs = parseInt('${{ steps.safety.outputs.max_prs }}');
+          
+          // Get PRs created in last 24 hours
+          const oneDayAgo = new Date();
+          oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+          
+          const prs = await github.rest.pulls.list({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'all',
+            sort: 'created',
+            direction: 'desc',
+            per_page: 100
+          });
+          
+          const recentAutomatedPRs = prs.data.filter(pr => {
+            const createdAt = new Date(pr.created_at);
+            const isRecent = createdAt > oneDayAgo;
+            const isAutomated = pr.user.login === 'github-actions[bot]' || 
+                               pr.labels.some(l => l.name === 'automated');
+            return isRecent && isAutomated;
+          });
+          
+          const prCount = recentAutomatedPRs.length;
+          core.setOutput('pr_count', prCount);
+          core.setOutput('rate_exceeded', prCount >= maxPRs);
+          
+          console.log(`Automated PRs in last 24h: ${prCount}/${maxPRs}`);
+          
+          if (prCount >= maxPRs) {
+            core.warning(`⚠️ Rate limit reached: ${prCount}/${maxPRs} PRs created`);
+          }
+    
+    - name: Activate kill switch on rate limit
+      if: |
+        steps.killswitch.outputs.status == 'enabled' &&
+        steps.rate_check.outputs.rate_exceeded == 'true'
+      run: |
+        echo "🚨 RATE LIMIT EXCEEDED - Activating kill switch"
+        
+        mkdir -p .chimera
+        cat > .chimera/AUTONOMOUS_DISABLED << EOF
+        AUTONOMOUS SYSTEM DISABLED
+        
+        Reason: Rate limit exceeded
+        Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        PRs created: ${{ steps.rate_check.outputs.pr_count }}/${{ steps.safety.outputs.max_prs }}
+        
+        To re-enable, delete this file and restart workflows.
+        EOF
+        
+        git config user.name "Chimera Guardian"
+        git config user.email "guardian@github-actions"
+        git add .chimera/AUTONOMOUS_DISABLED
+        git commit -m "🚨 Emergency stop: Rate limit exceeded"
+        git push
+    
+    - name: Check for workflow failures
+      if: steps.killswitch.outputs.status == 'enabled'
+      id: failures
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const runs = await github.rest.actions.listWorkflowRunsForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            per_page: 20,
+            status: 'completed'
+          });
+          
+          const recentFailures = runs.data.workflow_runs.filter(run => {
+            const oneHourAgo = new Date();
+            oneHourAgo.setHours(oneHourAgo.getHours() - 1);
+            const completedAt = new Date(run.updated_at);
+            
+            return run.conclusion === 'failure' && completedAt > oneHourAgo;
+          });
+          
+          core.setOutput('failure_count', recentFailures.length);
+          core.setOutput('has_failures', recentFailures.length > 0);
+          
+          if (recentFailures.length > 0) {
+            console.log(`⚠️ ${recentFailures.length} workflow failures in last hour`);
+            
+            for (const run of recentFailures.slice(0, 5)) {
+              console.log(`- ${run.name}: ${run.html_url}`);
+            }
+          }
+    
+    - name: Check for infinite loops
+      if: steps.killswitch.outputs.status == 'enabled'
+      id: loop_check
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const runs = await github.rest.actions.listWorkflowRunsForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            per_page: 50
+          });
+          
+          // Check for same workflow running too many times
+          const workflowCounts = {};
+          const lastHour = new Date();
+          lastHour.setHours(lastHour.getHours() - 1);
+          
+          for (const run of runs.data.workflow_runs) {
+            const createdAt = new Date(run.created_at);
+            if (createdAt > lastHour) {
+              workflowCounts[run.name] = (workflowCounts[run.name] || 0) + 1;
+            }
+          }
+          
+          let suspiciousLoops = false;
+          for (const [name, count] of Object.entries(workflowCounts)) {
+            if (count > 10) {
+              core.warning(`⚠️ Possible infinite loop: ${name} ran ${count} times in last hour`);
+              suspiciousLoops = true;
+            }
+          }
+          
+          core.setOutput('loop_detected', suspiciousLoops);
+    
+    - name: Activate kill switch on loop detection
+      if: |
+        steps.killswitch.outputs.status == 'enabled' &&
+        steps.loop_check.outputs.loop_detected == 'true'
+      run: |
+        echo "🚨 INFINITE LOOP DETECTED - Activating kill switch"
+        
+        mkdir -p .chimera
+        cat > .chimera/AUTONOMOUS_DISABLED << EOF
+        AUTONOMOUS SYSTEM DISABLED
+        
+        Reason: Possible infinite loop detected
+        Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        
+        Review recent workflow runs before re-enabling.
+        To re-enable, delete this file and restart workflows.
+        EOF
+        
+        git config user.name "Chimera Guardian"
+        git config user.email "guardian@github-actions"
+        git add .chimera/AUTONOMOUS_DISABLED
+        git commit -m "🚨 Emergency stop: Infinite loop detected"
+        git push
+    
+    - name: Monitor system resources
+      if: steps.killswitch.outputs.status == 'enabled'
+      run: |
+        echo "Monitoring system resources..."
+        
+        # Check workflow run times
+        echo "Recent workflow statistics:"
+        echo "- Active workflows: $(gh run list --limit 10 --json status | grep -c 'in_progress' || echo 0)"
+        echo "- Failed workflows (24h): ${{ steps.failures.outputs.failure_count }}"
+        echo "- Automated PRs (24h): ${{ steps.rate_check.outputs.pr_count }}"
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Check for suspicious activity
+      if: steps.killswitch.outputs.status == 'enabled'
+      id: suspicious
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          // Check for unusual patterns
+          const issues = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open',
+            labels: 'automated',
+            per_page: 100
+          });
+          
+          const automatedIssues = issues.data.length;
+          
+          if (automatedIssues > 50) {
+            core.warning(`⚠️ High number of automated issues: ${automatedIssues}`);
+            core.setOutput('suspicious', true);
+          } else {
+            core.setOutput('suspicious', false);
+          }
+          
+          console.log(`Open automated issues: ${automatedIssues}`);
+    
+    - name: Generate guardian report
+      if: always()
+      run: |
+        cat > guardian-report.md << EOF
+        # Autonomous Guardian Report
+        
+        **Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        **Trigger:** ${{ github.event_name }}
+        
+        ## System Status
+        
+        - Kill Switch: ${{ steps.killswitch.outputs.status == 'enabled' && '✅ Inactive' || '🛑 ACTIVE' }}
+        - Rate Limit: ${{ steps.rate_check.outputs.pr_count || 0 }}/${{ steps.safety.outputs.max_prs }} PRs (24h)
+        - Recent Failures: ${{ steps.failures.outputs.failure_count || 0 }} workflows (1h)
+        - Loop Detection: ${{ steps.loop_check.outputs.loop_detected == 'true' && '⚠️ Detected' || '✅ Normal' }}
+        - Suspicious Activity: ${{ steps.suspicious.outputs.suspicious == 'true' && '⚠️ Yes' || '✅ No' }}
+        
+        ## Safety Measures
+        
+        - Maximum PRs per day: ${{ steps.safety.outputs.max_prs }}
+        - Rollback on failure: ${{ steps.safety.outputs.rollback_enabled }}
+        - Monitoring interval: Hourly
+        - Emergency stop: ${{ steps.killswitch.outputs.status == 'disabled' && 'ACTIVATED' || 'Ready' }}
+        
+        ## Actions Taken
+        
+        ${{ steps.killswitch.outputs.status == 'disabled' && '- 🛑 System is currently disabled by kill switch' || '- ✅ No action required - system operating normally' }}
+        ${{ steps.rate_check.outputs.rate_exceeded == 'true' && '- 🚨 Kill switch activated due to rate limit' || '' }}
+        ${{ steps.loop_check.outputs.loop_detected == 'true' && '- 🚨 Kill switch activated due to loop detection' || '' }}
+        
+        ---
+        *Automated by Chimera Autonomous Guardian*
+        EOF
+        
+        cat guardian-report.md
+    
+    - name: Create alert issue on emergency stop
+      if: |
+        (steps.rate_check.outputs.rate_exceeded == 'true' ||
+         steps.loop_check.outputs.loop_detected == 'true') &&
+        steps.killswitch.outputs.status == 'enabled'
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('guardian-report.md', 'utf8');
+          
+          await github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: '🚨 EMERGENCY: Autonomous System Auto-Disabled',
+            body: `${report}\n\n## Manual Intervention Required\n\nThe autonomous system has been automatically disabled due to safety concerns. Please review the report above and take appropriate action.\n\n**To re-enable:**\n1. Review recent workflow runs\n2. Fix any issues\n3. Delete \`.chimera/AUTONOMOUS_DISABLED\` file\n4. Monitor closely after re-enabling`,
+            labels: ['urgent', 'automated', 'guardian']
+          });

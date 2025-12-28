@@ -1,0 +1,17 @@
+[
+  {
+    "label": "BTC Wallet 1",
+    "chain": "btc",
+    "address": "bc1q39s6vwj8h3mfe89eappsac60qjhmys3c6mclcp"
+  },
+  {
+    "label": "ETH Main Wallet",
+    "chain": "eth",
+    "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+  },
+  {
+    "label": "SOL Trading Wallet",
+    "chain": "sol",
+    "address": "DYw8jCTfwHNRJhhmFcbXvVDTqWMEVFBX6ZKUmG5CNSKK"
+  }
+]

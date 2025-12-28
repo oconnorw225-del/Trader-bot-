@@ -1,0 +1,129 @@
+name: NDAX Wallet Analysis
+
+on:
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    name: Analyze NDAX Trading Components
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize Analysis
+        run: |
+          echo "Starting NDAX Wallet Analysis..."
+          echo "WORKFLOW_FILE=.github/workflows/ndax_wallet_analyzer.yml" >> $GITHUB_ENV
+          echo "apis_used=" >> $GITHUB_ENV
+          echo "files_scanned=" >> $GITHUB_ENV
+          echo "missing_files=" >> $GITHUB_ENV
+          echo "execution_paths_taken=" >> $GITHUB_ENV
+          echo "execution_paths_skipped=" >> $GITHUB_ENV
+
+      - name: Detect Trading Mode
+        run: |
+          PRIVATE_APIS="GetAccountInfo|GetDeposits|GetWithdrawals|GetAccountPositions|SendOrder|CancelOrder|GetOrderStatus|GetOrderHistory|GetWithdrawTickets|GetDepositTickets"
+          PUBLIC_APIS="Ticker|Summary|Ping|GetTickerHistory|EarliestTickerTime|GetLevel1|GetProducts|GetInstruments"
+
+          PRIVATE_COUNT=$(grep -R -E "$PRIVATE_APIS" . --exclude-dir={.git,node_modules,dist} || true | wc -l)
+          PUBLIC_COUNT=$(grep -R -E "$PUBLIC_APIS" . --exclude-dir={.git,node_modules,dist} || true | wc -l)
+
+          if [ "$PRIVATE_COUNT" -gt 0 ]; then
+            MODE="REAL"
+          elif [ "$PUBLIC_COUNT" -gt 0 ]; then
+            MODE="PAPER"
+          else
+            MODE="UNKNOWN"
+          fi
+
+          echo "TRADING_MODE=$MODE" >> $GITHUB_ENV
+          echo "WALLET_TYPE=$MODE" >> $GITHUB_ENV
+
+      - name: Analyze API Usage
+        run: |
+          APIS=(
+            GetAccountInfo GetDeposits GetWithdrawals GetAccountPositions
+            SendOrder CancelOrder GetOrderStatus GetOrderHistory
+            Ticker Summary Ping GetTickerHistory
+            EarliestTickerTime GetLevel1 GetProducts GetInstruments
+            GetWithdrawTickets GetDepositTickets GetOpenOrders GetOrderFee
+          )
+
+          FOUND=()
+          for api in "${APIS[@]}"; do
+            if grep -R "$api" . --exclude-dir={.git,node_modules,dist} >/dev/null 2>&1; then
+              FOUND+=("$api")
+            fi
+          done
+
+          API_LIST=$(IFS=','; echo "${FOUND[*]}")
+          echo "API_LIST=$API_LIST" >> $GITHUB_ENV
+          echo "API_COUNT=${#FOUND[@]}" >> $GITHUB_ENV
+
+      - name: File Scan
+        run: |
+          FILES=(
+            ".github/workflows/ndax_wallet_analyzer.yml"
+            "src/services/NdaxEndpointTester.js"
+            "chimera_core/exchange/real_api_connectors.py"
+            "backend/nodejs/server.js"
+            "backend/python/app.py"
+            "package.json"
+            "requirements.txt"
+            "README.md"
+          )
+
+          SCANNED=()
+          MISSING=()
+
+          for file in "${FILES[@]}"; do
+            if [ -f "$file" ]; then
+              SCANNED+=("$file")
+            else
+              MISSING+=("$file")
+            fi
+          done
+
+          FILES_SCANNED=$(IFS=','; echo "${SCANNED[*]}")
+          MISSING_FILES=$(IFS=','; echo "${MISSING[*]}")
+
+          echo "FILES_SCANNED=$FILES_SCANNED" >> $GITHUB_ENV
+          echo "FILE_COUNT=${#SCANNED[@]}" >> $GITHUB_ENV
+          echo "MISSING_FILES=$MISSING_FILES" >> $GITHUB_ENV
+
+          if [ "${#MISSING[@]}" -eq 0 ]; then
+            echo "FILE_INTEGRITY_STATUS=OK" >> $GITHUB_ENV
+          else
+            echo "FILE_INTEGRITY_STATUS=COMPROMISED" >> $GITHUB_ENV
+          fi
+
+      - name: Generate Report
+        run: |
+          echo "=========================================="
+          echo "     NDAX WALLET ANALYSIS REPORT"
+          echo "=========================================="
+          echo ""
+          echo "TradingMode: ${TRADING_MODE:-UNKNOWN}"
+          echo "WalletType: ${WALLET_TYPE:-UNKNOWN}"
+          echo "APIsUsed: [${API_LIST}]"
+          echo "APICount: ${API_COUNT:-0}"
+          echo "FilesScanned: [${FILES_SCANNED}]"
+          echo "FileCount: ${FILE_COUNT:-0}"
+          echo "MissingFiles: [${MISSING_FILES}]"
+          echo "FileIntegrityStatus: ${FILE_INTEGRITY_STATUS:-UNKNOWN}"
+          echo ""
+          echo "=========================================="
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### NDAX Wallet Analysis Complete 🎯" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Trading Mode | ${TRADING_MODE:-UNKNOWN} |" >> $GITHUB_STEP_SUMMARY
+          echo "| APIs Found | ${API_COUNT:-0} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Files Scanned | ${FILE_COUNT:-0} |" >> $GITHUB_STEP_SUMMARY
+          echo "| File Integrity | ${FILE_INTEGRITY_STATUS:-UNKNOWN} |" >> $GITHUB_STEP_SUMMARY

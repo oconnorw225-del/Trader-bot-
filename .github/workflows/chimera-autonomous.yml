@@ -1,0 +1,235 @@
+name: Chimera Autonomous Health Check
+
+on:
+  schedule:
+    # Run every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      force_fixes:
+        description: 'Force automatic fixes for detected issues'
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Check for kill switch
+      id: killswitch
+      run: |
+        if [ -f ".chimera/AUTONOMOUS_DISABLED" ]; then
+          echo "AUTONOMOUS SYSTEM DISABLED - Kill switch active"
+          echo "disabled=true" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        echo "disabled=false" >> $GITHUB_OUTPUT
+    
+    - name: Setup Node.js
+      if: steps.killswitch.outputs.disabled == 'false'
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18.x'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      if: steps.killswitch.outputs.disabled == 'false'
+      run: npm ci
+    
+    - name: Check code quality
+      if: steps.killswitch.outputs.disabled == 'false'
+      id: quality
+      run: |
+        echo "Running code quality checks..."
+        npm run lint > lint-report.txt 2>&1 || true
+        
+        # Count errors and warnings
+        ERRORS=$(grep -c "error" lint-report.txt || echo "0")
+        WARNINGS=$(grep -c "warning" lint-report.txt || echo "0")
+        
+        echo "errors=$ERRORS" >> $GITHUB_OUTPUT
+        echo "warnings=$WARNINGS" >> $GITHUB_OUTPUT
+        
+        if [ "$ERRORS" -gt 10 ]; then
+          echo "issue=High number of linting errors detected: $ERRORS" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Run tests
+      if: steps.killswitch.outputs.disabled == 'false'
+      id: tests
+      run: |
+        echo "Running test suite..."
+        npm test > test-report.txt 2>&1 || true
+        
+        # Extract test results
+        PASSING=$(grep -o "[0-9]* passing" test-report.txt | grep -o "[0-9]*" || echo "0")
+        FAILING=$(grep -o "[0-9]* failing" test-report.txt | grep -o "[0-9]*" || echo "0")
+        
+        echo "passing=$PASSING" >> $GITHUB_OUTPUT
+        echo "failing=$FAILING" >> $GITHUB_OUTPUT
+        
+        if [ "$FAILING" -gt 5 ]; then
+          echo "issue=Multiple test failures detected: $FAILING tests failing" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Check dependencies
+      if: steps.killswitch.outputs.disabled == 'false'
+      id: deps
+      run: |
+        echo "Checking for outdated dependencies..."
+        npm outdated > deps-report.txt 2>&1 || true
+        
+        OUTDATED=$(wc -l < deps-report.txt)
+        echo "outdated=$OUTDATED" >> $GITHUB_OUTPUT
+        
+        if [ "$OUTDATED" -gt 20 ]; then
+          echo "issue=Many outdated dependencies: $OUTDATED packages" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Security scan
+      if: steps.killswitch.outputs.disabled == 'false'
+      id: security
+      run: |
+        echo "Running security audit..."
+        npm audit --json > audit-report.json 2>&1 || true
+        
+        # Parse vulnerabilities
+        CRITICAL=$(cat audit-report.json | grep -o '"critical":[0-9]*' | grep -o '[0-9]*' || echo "0")
+        HIGH=$(cat audit-report.json | grep -o '"high":[0-9]*' | grep -o '[0-9]*' || echo "0")
+        
+        echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+        echo "high=$HIGH" >> $GITHUB_OUTPUT
+        
+        if [ "$CRITICAL" -gt 0 ]; then
+          echo "issue=Critical security vulnerabilities found: $CRITICAL" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Check disk usage
+      if: steps.killswitch.outputs.disabled == 'false'
+      id: disk
+      run: |
+        USAGE=$(df -h . | tail -1 | awk '{print $5}' | sed 's/%//')
+        echo "usage=$USAGE" >> $GITHUB_OUTPUT
+        
+        if [ "$USAGE" -gt 80 ]; then
+          echo "issue=High disk usage: ${USAGE}%" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Generate health report
+      if: steps.killswitch.outputs.disabled == 'false'
+      run: |
+        cat > health-report.md << EOF
+        # Autonomous Health Check Report
+        
+        **Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        **Trigger:** ${{ github.event_name }}
+        
+        ## Summary
+        
+        | Check | Status | Details |
+        |-------|--------|---------|
+        | Code Quality | ${{ steps.quality.outputs.errors > 10 && '⚠️' || '✅' }} | ${{ steps.quality.outputs.errors }} errors, ${{ steps.quality.outputs.warnings }} warnings |
+        | Tests | ${{ steps.tests.outputs.failing > 5 && '⚠️' || '✅' }} | ${{ steps.tests.outputs.passing }} passing, ${{ steps.tests.outputs.failing }} failing |
+        | Dependencies | ${{ steps.deps.outputs.outdated > 20 && '⚠️' || '✅' }} | ${{ steps.deps.outputs.outdated }} outdated packages |
+        | Security | ${{ steps.security.outputs.critical > 0 && '🚨' || '✅' }} | ${{ steps.security.outputs.critical }} critical, ${{ steps.security.outputs.high }} high |
+        | Disk Usage | ${{ steps.disk.outputs.usage > 80 && '⚠️' || '✅' }} | ${{ steps.disk.outputs.usage }}% used |
+        
+        ## Actions Taken
+        
+        - Health check completed successfully
+        - Reports generated for review
+        - Issues logged if thresholds exceeded
+        
+        ## Next Steps
+        
+        ${{ steps.quality.outputs.issue && format('- {0}', steps.quality.outputs.issue) || '' }}
+        ${{ steps.tests.outputs.issue && format('- {0}', steps.tests.outputs.issue) || '' }}
+        ${{ steps.deps.outputs.issue && format('- {0}', steps.deps.outputs.issue) || '' }}
+        ${{ steps.security.outputs.issue && format('- {0}', steps.security.outputs.issue) || '' }}
+        ${{ steps.disk.outputs.issue && format('- {0}', steps.disk.outputs.issue) || '' }}
+        
+        ---
+        *Automated by Chimera Autonomous System*
+        EOF
+        
+        cat health-report.md
+    
+    - name: Create issue for problems
+      if: |
+        steps.killswitch.outputs.disabled == 'false' &&
+        (steps.quality.outputs.issue != '' ||
+         steps.tests.outputs.issue != '' ||
+         steps.deps.outputs.issue != '' ||
+         steps.security.outputs.issue != '' ||
+         steps.disk.outputs.issue != '')
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('health-report.md', 'utf8');
+          
+          // Check for existing open issue
+          const issues = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            labels: 'autonomous-health-check',
+            state: 'open'
+          });
+          
+          if (issues.data.length > 0) {
+            // Update existing issue
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issues.data[0].number,
+              body: report
+            });
+            console.log('Updated existing health check issue');
+          } else {
+            // Create new issue
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🤖 Autonomous Health Check: Issues Detected',
+              body: report,
+              labels: ['autonomous-health-check', 'automated']
+            });
+            console.log('Created new health check issue');
+          }
+    
+    - name: Trigger auto-fix workflow
+      if: |
+        steps.killswitch.outputs.disabled == 'false' &&
+        github.event.inputs.force_fixes == 'true' &&
+        (steps.quality.outputs.issue != '' || steps.tests.outputs.issue != '')
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          await github.rest.actions.createWorkflowDispatch({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            workflow_id: 'auto-fix.yml',
+            ref: 'main'
+          });
+          console.log('Triggered auto-fix workflow');
+    
+    - name: Log completion
+      if: always()
+      run: |
+        echo "Autonomous health check completed at $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+        echo "Kill switch: ${{ steps.killswitch.outputs.disabled }}"
+        echo "Issues detected: ${{ steps.quality.outputs.issue != '' || steps.tests.outputs.issue != '' || steps.deps.outputs.issue != '' || steps.security.outputs.issue != '' || steps.disk.outputs.issue != '' }}"

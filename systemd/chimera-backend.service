@@ -1,0 +1,27 @@
+[Unit]
+Description=Chimera Trading System - Python Backend
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory={{PROJECT_DIR}}
+Environment="PYTHON_BACKEND_PORT=8000"
+Environment="FLASK_ENV=production"
+EnvironmentFile={{PROJECT_DIR}}/.env
+ExecStart=/usr/bin/python3 {{PROJECT_DIR}}/unified_system_with_exchanges.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=chimera-backend
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Resource limits
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

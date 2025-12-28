@@ -1,0 +1,16 @@
+# Railway TOML Configuration
+# Note: railway.json is the primary configuration file
+# This file is kept for reference but railway.json takes precedence
+
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+healthcheckPath = "/api/health"
+healthcheckTimeout = 120
+healthcheckInterval = 30
+
+# Railway will automatically assign PORT - do not hardcode
+# The server reads from process.env.PORT
+[env]
+NODE_ENV = "production"

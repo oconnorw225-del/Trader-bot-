@@ -1,0 +1,19 @@
+AUTONOMOUS SYSTEM ENABLED
+
+This marker file indicates that the Chimera Autonomous System is active.
+
+Status: ✅ ENABLED
+Date Enabled: 2025-12-20
+Version: 2.1.0
+
+The autonomous system will:
+- Run health checks every 6 hours
+- Perform maintenance weekly
+- Monitor system safety continuously
+- Create issues and PRs automatically
+- Fix common problems autonomously
+
+To disable the autonomous system, delete this file and create AUTONOMOUS_DISABLED instead.
+
+For configuration, see: .chimera/autonomous-config.json
+For documentation, see: AUTONOMOUS_SYSTEM.md

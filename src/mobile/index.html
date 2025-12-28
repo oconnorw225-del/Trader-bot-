@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>NDAX Auto-Start Control</title>
+  <link rel="stylesheet" href="mobile-styles.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>🤖 Auto-Start Control</h1>
+      <div id="connection-status" class="status-indicator offline">
+        <span class="status-dot"></span>
+        <span class="status-text">Connecting...</span>
+      </div>
+    </header>
+
+    <main>
+      <!-- Earnings Dashboard -->
+      <section class="earnings-section">
+        <h2>💰 Earnings</h2>
+        <div class="earnings-grid">
+          <div class="earning-card">
+            <div class="earning-label">Today</div>
+            <div class="earning-value" id="today-earnings">$0.00</div>
+          </div>
+          <div class="earning-card">
+            <div class="earning-label">This Week</div>
+            <div class="earning-value" id="week-earnings">$0.00</div>
+          </div>
+          <div class="earning-card">
+            <div class="earning-label">This Month</div>
+            <div class="earning-value" id="month-earnings">$0.00</div>
+          </div>
+          <div class="earning-card highlight">
+            <div class="earning-label">Total</div>
+            <div class="earning-value" id="total-earnings">$0.00</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Control Section -->
+      <section class="control-section">
+        <button id="main-control-btn" class="main-control-btn start" disabled>
+          <span class="btn-icon">▶</span>
+          <span class="btn-text">START</span>
+        </button>
+        
+        <button id="emergency-stop-btn" class="emergency-btn" style="display: none;">
+          🛑 EMERGENCY STOP
+        </button>
+      </section>
+
+      <!-- Strategy Selector -->
+      <section class="strategy-section">
+        <h2>📊 Job Strategy</h2>
+        <div class="strategy-selector">
+          <button class="strategy-btn active" data-strategy="balanced">
+            <div class="strategy-icon">⚖️</div>
+            <div class="strategy-name">Balanced</div>
+            <div class="strategy-desc">Optimal mix</div>
+          </button>
+          <button class="strategy-btn" data-strategy="quick-payout">
+            <div class="strategy-icon">⚡</div>
+            <div class="strategy-name">Quick Payout</div>
+            <div class="strategy-desc">Fast cash</div>
+          </button>
+          <button class="strategy-btn" data-strategy="big-yield">
+            <div class="strategy-icon">💎</div>
+            <div class="strategy-name">Big Yield</div>
+            <div class="strategy-desc">High paying</div>
+          </button>
+          <button class="strategy-btn" data-strategy="guaranteed-completion">
+            <div class="strategy-icon">✅</div>
+            <div class="strategy-name">Guaranteed</div>
+            <div class="strategy-desc">Easy wins</div>
+          </button>
+        </div>
+      </section>
+
+      <!-- Stats Section -->
+      <section class="stats-section">
+        <h2>📈 Statistics</h2>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-label">Active Jobs</div>
+            <div class="stat-value" id="active-jobs">0</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">Completed</div>
+            <div class="stat-value" id="completed-jobs">0</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">Success Rate</div>
+            <div class="stat-value" id="success-rate">0%</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">Available Slots</div>
+            <div class="stat-value" id="available-slots">0</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Platform Status -->
+      <section class="platforms-section">
+        <h2>🌐 Platforms</h2>
+        <div id="platforms-list" class="platforms-list">
+          <div class="loading">Loading platforms...</div>
+        </div>
+      </section>
+
+      <!-- Alerts Section -->
+      <section class="alerts-section">
+        <h2>🔔 Alerts</h2>
+        <div id="alerts-list" class="alerts-list">
+          <div class="no-alerts">No alerts</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="mobile-app.js"></script>
+</body>
+</html>

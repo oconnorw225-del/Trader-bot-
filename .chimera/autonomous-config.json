@@ -1,0 +1,97 @@
+{
+  "enabled": true,
+  "version": "2.1.0",
+  "description": "Chimera Autonomous System Configuration",
+  
+  "schedule": {
+    "health_check": "0 */6 * * *",
+    "maintenance": "0 0 * * 0",
+    "consolidation": "0 2 * * 0",
+    "guardian": "0 * * * *"
+  },
+  
+  "tasks": {
+    "health_checks": true,
+    "auto_fixes": true,
+    "dependency_updates": true,
+    "code_optimization": true,
+    "security_scans": true,
+    "repository_consolidation": true
+  },
+  
+  "safety": {
+    "require_approval": false,
+    "max_prs_per_day": 10,
+    "max_issues_per_day": 20,
+    "rollback_on_failure": true,
+    "notify_on_error": true,
+    "enable_kill_switch": true,
+    "rate_limit_monitoring": true
+  },
+  
+  "thresholds": {
+    "critical_vulnerabilities": 0,
+    "high_vulnerabilities": 5,
+    "lint_errors": 10,
+    "test_failures": 5,
+    "outdated_dependencies": 20,
+    "disk_usage_percent": 80
+  },
+  
+  "integrations": {
+    "copilot": true,
+    "github_actions": true,
+    "auto_start_system": true
+  },
+  
+  "trading_safety": {
+    "auto_trading_enabled": false,
+    "require_manual_approval": true,
+    "testnet_only": true,
+    "max_trade_amount": 0,
+    "trading_hours": []
+  },
+  
+  "consolidation": {
+    "enabled": true,
+    "dry_run_default": true,
+    "source_repositories": [
+      "oconnorw225-del/quantum-engine-dashb",
+      "oconnorw225-del/shadowforge-ai-trader",
+      "oconnorw225-del/repository-web-app"
+    ],
+    "backup_before_merge": true,
+    "run_tests_after_merge": true
+  },
+  
+  "notifications": {
+    "email": {
+      "enabled": false,
+      "address": ""
+    },
+    "slack": {
+      "enabled": false,
+      "webhook_url": ""
+    },
+    "github_issues": {
+      "enabled": true,
+      "create_on_error": true,
+      "update_existing": true
+    }
+  },
+  
+  "logging": {
+    "level": "info",
+    "audit_trail": true,
+    "retention_days": 30
+  },
+  
+  "workflow_permissions": {
+    "create_prs": true,
+    "create_issues": true,
+    "modify_code": true,
+    "update_dependencies": true,
+    "merge_prs": false,
+    "close_issues": false
+  }
+}

@@ -1,0 +1,166 @@
+name: 'Create PRs for branches'
+
+on:
+  workflow_dispatch:
+    inputs:
+      run:
+        description: 'Set to true to actually create PRs. Default is false (dry-run).'
+        required: false
+        default: 'false'
+        type: boolean
+      base:
+        description: 'Base branch to create PRs into'
+        required: false
+        default: 'main'
+        type: string
+      labels:
+        description: 'Comma-separated list of labels to add to created PRs'
+        required: false
+        default: 'enhancement,cleanup,high-priority'
+        type: string
+      exclude:
+        description: 'Regex of branch name patterns to exclude (e.g. ^dependabot/|^renovate/)'
+        required: false
+        default: '^dependabot/|^renovate/'
+        type: string
+      stale_days:
+        description: 'Days after last commit to mark PR as draft'
+        required: false
+        default: '365'
+        type: number
+      min_commits:
+        description: 'Minimum number of commits ahead of base to consider creating a PR'
+        required: false
+        default: '1'
+        type: number
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  create-prs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create PRs for branches (script)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // inputs
+            const runLive = core.getInput('run') === 'true' || github.context.payload.inputs?.run === true || github.context.payload.inputs?.run === 'true';
+            const BASE = core.getInput('base') || 'main';
+            const LABELS = (core.getInput('labels') || '').split(',').map(s => s.trim()).filter(Boolean);
+            const EXCLUDE_RE = new RegExp(core.getInput('exclude') || '^dependabot/|^renovate/', 'i');
+            const STALE_DAYS = parseInt(core.getInput('stale_days') || '365', 10);
+            const MIN_COMMITS = parseInt(core.getInput('min_commits') || '1', 10);
+
+            const OWNER = context.repo.owner;
+            const REPO = context.repo.repo;
+            const now = Math.floor(Date.now() / 1000);
+
+            core.info(`runLive=${runLive} base=${BASE} labels=${LABELS.join(',')} exclude=${EXCLUDE_RE} stale_days=${STALE_DAYS} min_commits=${MIN_COMMITS}`);
+
+            // list branches
+            const branches = await github.paginate(github.repos.listBranches, { owner: OWNER, repo: REPO });
+            const branchNames = branches.map(b => b.name).filter(n => n !== BASE && n !== 'HEAD' && !EXCLUDE_RE.test(n));
+            core.info(`Found ${branchNames.length} branches to consider (after exclude).`);
+
+            for (const br of branchNames) {
+              core.info(`Processing branch: ${br}`);
+
+              // skip if there's already an open PR from this head into BASE
+              try {
+                const existing = await github.pulls.list({
+                  owner: OWNER,
+                  repo: REPO,
+                  state: 'open',
+                  head: `${OWNER}:${br}`,
+                  base: BASE,
+                  per_page: 100
+                });
+                if ((existing.data || []).length > 0) {
+                  core.info(`  - Open PR already exists for ${br} -> ${BASE}, skipping.`);
+                  continue;
+                }
+              } catch (e) {
+                core.warning(`  - Could not check existing PRs for ${br}: ${e.message}`);
+              }
+
+              // get last commit date (safe fallback if committer missing)
+              let lastCommitTs = now;
+              try {
+                const commitResp = await github.repos.getCommit({ owner: OWNER, repo: REPO, ref: br });
+                const commit = commitResp.data.commit;
+                const dateStr = commit.committer?.date || commit.author?.date;
+                if (dateStr) {
+                  lastCommitTs = Math.floor(new Date(dateStr).getTime() / 1000);
+                } else {
+                  core.warning(`  - No committer/author date for ${br}, using now.`);
+                }
+              } catch (e) {
+                core.warning(`  - Could not fetch commit for ${br}: ${e.message}`);
+              }
+
+              const ageDays = Math.floor((now - lastCommitTs) / 86400);
+
+              // compare to base to determine ahead/behind and changed files
+              let ahead = 0, behind = 0;
+              let changedFilesSample = '(could not list files)';
+              try {
+                const cmp = await github.repos.compareCommits({ owner: OWNER, repo: REPO, base: BASE, head: br });
+                ahead = cmp.data.ahead_by || 0;
+                behind = cmp.data.behind_by || 0;
+                changedFilesSample = (cmp.data.files || []).slice(0, 50).map(f => f.filename).join(', ') || '(none listed)';
+              } catch (e) {
+                core.warning(`  - Compare failed for ${br}: ${e.message}`);
+              }
+
+              // require at least MIN_COMMITS ahead
+              if (ahead < MIN_COMMITS) {
+                core.info(`  - Branch has ${ahead} commits ahead (min required ${MIN_COMMITS}), skipping.`);
+                continue;
+              }
+
+              // heuristics for draft/low-quality
+              const nameHint = /wip|todo|backup|remove|old|draft/i.test(br);
+              const lowQuality = ageDays >= STALE_DAYS || nameHint;
+
+              const title = `Merge branch '${br}' into ${BASE}`.replace(/'/g, "'");
+              const body = `Automated PR created from branch \`${br}\` into \`${BASE}\`.\n\nSummary:\n- Commits ahead: ${ahead}\n- Commits behind: ${behind}\n- Last commit age: ${ageDays} days\n- Changed files (sample): ${changedFilesSample}\n\nThis PR was created automatically as part of a repo cleanup. Please review and merge when ready.`;
+              const draft = Boolean(lowQuality);
+
+              core.info(`  - title: ${title}`);
+              core.info(`  - draft: ${draft}`);
+              core.info(`  - labels: ${LABELS.join(',')}`);
+
+              if (!runLive) {
+                core.info(`[DRY-RUN] Would create PR for ${br} (draft=${draft})`);
+                continue;
+              }
+
+              // create PR
+              try {
+                const pr = await github.pulls.create({ owner: OWNER, repo: REPO, head: br, base: BASE, title, body, draft });
+                core.info(`  - PR created: ${pr.data.html_url}`);
+                if (LABELS.length > 0) {
+                  try {
+                    await github.issues.addLabels({ owner: OWNER, repo: REPO, issue_number: pr.data.number, labels: LABELS });
+                    core.info(`  - Labels added to PR #${pr.data.number}`);
+                  } catch (e) {
+                    core.warning(`  - Failed to add labels to PR #${pr.data.number}: ${e.message}`);
+                  }
+                }
+              } catch (e) {
+                core.warning(`  - Failed to create PR for ${br}: ${e.message}`);
+              }
+            }
+
+            core.info('Done.');
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

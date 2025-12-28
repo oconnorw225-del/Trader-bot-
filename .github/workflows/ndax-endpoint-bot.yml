@@ -1,0 +1,90 @@
+name: NDAX API Endpoint Testing Bot
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'NDAX API Base URL'
+        required: false
+        default: 'https://api.ndax.io'
+        type: string
+  schedule:
+    # Run daily at 00:00 UTC
+    - cron: '0 0 * * *'
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/services/NdaxEndpointTester.js'
+      - 'scripts/ndax-endpoint-bot.js'
+      - '.github/workflows/ndax-endpoint-bot.yml'
+
+jobs:
+  test-endpoints:
+    name: Test NDAX API Endpoints
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run NDAX Endpoint Testing Bot
+        env:
+          API_KEY: ${{ secrets.NDAX_API_KEY }}
+          API_SECRET: ${{ secrets.NDAX_API_SECRET }}
+          BASE_URL: ${{ inputs.base_url || 'https://api.ndax.io' }}
+        run: node scripts/ndax-endpoint-bot.js --json-only
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ndax-endpoint-test-results-${{ github.run_number }}
+          path: results/ndax-endpoint-results-*.json
+          retention-days: 30
+
+      - name: Comment PR with results (if PR)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const resultsFiles = fs.readdirSync('results').filter(f => f.startsWith('ndax-endpoint-results-'));
+            
+            if (resultsFiles.length > 0) {
+              const resultsPath = `results/${resultsFiles[0]}`;
+              const results = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
+              
+              const successful = results.filter(r => r.Status === 'Success').length;
+              const failed = results.filter(r => r.Status === 'Failed').length;
+              const criticalMisses = results.filter(r => r.CriticalMissesDetected === 'Yes').length;
+              
+              const comment = `## 🤖 NDAX API Endpoint Test Results
+              
+              | Metric | Value |
+              |--------|-------|
+              | Total Endpoints | ${results.length} |
+              | ✅ Successful | ${successful} |
+              | ❌ Failed | ${failed} |
+              | ⚠️ Critical Misses | ${criticalMisses} |
+              | 🔢 API Calls | ${results[results.length - 1]?.APICount || 0} |
+              
+              ${failed > 0 ? '❌ Some tests failed. Check the workflow logs for details.' : '✅ All tests passed!'}
+              `;
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }

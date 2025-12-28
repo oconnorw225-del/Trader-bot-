@@ -1,0 +1,231 @@
+name: Imaginative Perception - Chimera Full Asset Discovery
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - 'copilot/**'
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  NODE_VERSION: '18.x'
+  PYTHON_VERSION: '3.11'
+  NODE_ENV: 'production'
+
+jobs:
+  chimera_discovery:
+    name: Chimera Full Asset Discovery & Audit
+    runs-on: ubuntu-latest
+    environment: imaginative-perception
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Verify Safety Lock
+        run: |
+          echo "🔒 Verifying AUDIT_ONLY mode..."
+          if ! grep -q 'MODE = "AUDIT_ONLY"' chimera_full_discovery.py; then
+            echo "❌ ERROR: Safety lock not found!"
+            exit 1
+          fi
+          if ! grep -q 'assert MODE == "AUDIT_ONLY"' chimera_full_discovery.py; then
+            echo "❌ ERROR: Safety assertion not found!"
+            exit 1
+          fi
+          echo "✅ Safety lock verified - AUDIT_ONLY mode confirmed"
+
+      - name: Check inputs
+        run: |
+          echo "📂 Checking for wallet configuration..."
+          if [ ! -f "inputs/wallets.json" ]; then
+            echo "⚠️  WARNING: No wallets.json found, creating example..."
+            mkdir -p inputs
+            cat > inputs/wallets.json << 'EOF'
+          [
+            {
+              "label": "Example BTC Wallet",
+              "chain": "btc",
+              "address": "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh"
+            }
+          ]
+          EOF
+          fi
+          echo "✅ Wallet configuration ready"
+          cat inputs/wallets.json
+
+      - name: Run Chimera Full Asset Discovery
+        env:
+          # GitHub Access
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+          # NDAX API Credentials
+          NDAX_API_KEY: ${{ secrets.NDAX_API_KEY }}
+          NDAX_API_SECRET: ${{ secrets.NDAX_API_SECRET }}
+          NDAX_USER_ID: ${{ secrets.NDAX_USER_ID }}
+          NDAX_ACCOUNT_ID: ${{ secrets.NDAX_ACCOUNT_ID }}
+          
+          # Security Secrets
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          
+          # External Services
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_SERVICE: ${{ secrets.RAILWAY_SERVICE }}
+          
+          # AI/ML Services
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          
+          # Freelance Platforms
+          UPWORK_CLIENT_ID: ${{ secrets.UPWORK_CLIENT_ID }}
+          UPWORK_CLIENT_SECRET: ${{ secrets.UPWORK_CLIENT_SECRET }}
+          FIVERR_API_KEY: ${{ secrets.FIVERR_API_KEY }}
+          FREELANCER_API_KEY: ${{ secrets.FREELANCER_API_KEY }}
+          TOPTAL_API_KEY: ${{ secrets.TOPTAL_API_KEY }}
+          GURU_API_KEY: ${{ secrets.GURU_API_KEY }}
+          PEOPLEPERHOUR_API_KEY: ${{ secrets.PEOPLEPERHOUR_API_KEY }}
+          
+          # Chimera System
+          CHIMERA_PAYLOAD_KEY: ${{ secrets.CHIMERA_PAYLOAD_KEY }}
+          CHIMERA_ENC: ${{ secrets.CHIMERA_ENC }}
+          
+          # Deployment Configuration
+          BASE_URL: ${{ secrets.BASE_URL || 'http://localhost:3000' }}
+        run: |
+          echo "🚀 Starting Chimera Full Asset Discovery (READ-ONLY)..."
+          echo "🌐 Environment: Imaginative Perception"
+          python chimera_full_discovery.py
+          echo ""
+          echo "📊 Audit Complete!"
+
+      - name: Display Results Summary
+        run: |
+          echo "📋 Generated Reports:"
+          ls -lh output/
+          echo ""
+          if [ -f "output/manifest.json" ]; then
+            echo "📄 Manifest:"
+            cat output/manifest.json
+          fi
+          echo ""
+          if [ -f "output/ASSET_REPORT.md" ]; then
+            echo "📊 Asset Report Preview:"
+            head -n 30 output/ASSET_REPORT.md
+          fi
+
+      - name: Upload Full Asset Discovery Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: chimera-imaginative-perception-${{ github.run_number }}
+          path: |
+            output/FULL_ASSET_DISCOVERY.json
+            output/ASSET_REPORT.md
+            output/assets.csv
+            output/manifest.json
+            output/history/
+          retention-days: 90
+
+      - name: Generate Workflow Summary
+        run: |
+          echo "# 🎯 Chimera Full Asset Discovery Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Mode:** READ-ONLY / AUDIT ONLY" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** Imaginative Perception" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "output/manifest.json" ]; then
+            echo "## 📦 Manifest" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat output/manifest.json >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -f "output/ASSET_REPORT.md" ]; then
+            echo "## 📊 Asset Discovery Report" >> $GITHUB_STEP_SUMMARY
+            cat output/ASSET_REPORT.md >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "*Automated by Chimera Full Asset Discovery Engine (Imaginative Perception)*" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check for anomalies
+        if: always()
+        run: |
+          echo "🔍 Checking for anomalies..."
+          
+          # Check if any reports were generated
+          if [ ! -f "output/FULL_ASSET_DISCOVERY.json" ]; then
+            echo "⚠️  WARNING: Main JSON report not generated"
+          fi
+          
+          if [ ! -f "output/manifest.json" ]; then
+            echo "⚠️  WARNING: Manifest not generated"
+          fi
+          
+          # Check file sizes (cross-platform)
+          if [ -f "output/FULL_ASSET_DISCOVERY.json" ]; then
+            SIZE=$(wc -c < "output/FULL_ASSET_DISCOVERY.json" 2>/dev/null)
+            if [ "$SIZE" -lt 10 ]; then
+              echo "⚠️  WARNING: JSON report seems too small ($SIZE bytes)"
+            else
+              echo "✅ JSON report size: $SIZE bytes"
+            fi
+          fi
+          
+          echo "✅ Anomaly check complete"
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            
+            let comment = '## 🎯 Chimera Full Asset Discovery Report\n\n';
+            comment += '**Environment:** Imaginative Perception\n';
+            comment += '**Mode:** READ-ONLY / AUDIT ONLY\n\n';
+            
+            if (fs.existsSync('output/manifest.json')) {
+              const manifest = JSON.parse(fs.readFileSync('output/manifest.json', 'utf8'));
+              comment += '### 📦 Manifest\n';
+              comment += '```json\n' + JSON.stringify(manifest, null, 2) + '\n```\n\n';
+            }
+            
+            if (fs.existsSync('output/ASSET_REPORT.md')) {
+              const report = fs.readFileSync('output/ASSET_REPORT.md', 'utf8');
+              comment += '### 📊 Asset Discovery Report\n';
+              comment += report + '\n';
+            }
+            
+            comment += '\n---\n*Automated by Chimera Full Asset Discovery Engine (Imaginative Perception)*';
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: comment
+            });

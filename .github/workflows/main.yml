@@ -1,0 +1,197 @@
+name: PR Management and Consolidation
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 0'  # Run weekly on Sunday at midnight UTC
+
+jobs:
+  pr-management:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Install tools (gh, jq)
+      run: |
+        sudo apt-get update -y
+        sudo apt-get install -y curl jq git
+        if ! command -v gh >/dev/null 2>&1; then
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt-get update -y
+          sudo apt-get install -y gh
+        fi
+        gh --version
+        jq --version
+
+    
+    - name: Authenticate gh CLI with GITHUB_TOKEN
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "${GITHUB_TOKEN}" | gh auth login --with-token
+
+    - name: Non-destructive PR backup, rebase, and consolidation
+      env:
+        OWNER: ${{ github.repository_owner }}
+        REPO: ${{ github.repository }}
+        BASE_BRANCH: main
+        DATE: $(date -u +%F-%H%M%S)
+        BACKUP_PRS: "10 11"
+        EVAL_PRS: "18 24 25 26 28 31 42"
+        REFACT_PRS: "24 25 26"
+      run: |
+        set -euo pipefail
+
+        # helper to get PR head ref and sha
+        get_pr_head() {
+          pr=$1
+          gh pr view "$pr" --repo "${REPO}" --json headRefName,headRefOid --jq '.headRefName + " " + .headRefOid' 2>/dev/null || echo ""
+        }
+
+        echo "Repository: ${REPO}"
+        echo "Base branch: ${BASE_BRANCH}"
+        echo "Date token: ${DATE}"
+
+        # Ensure we have latest main
+        git fetch origin "${BASE_BRANCH}:refs/remotes/origin/${BASE_BRANCH}" || true
+
+        # 1) Back up PR heads (create backup branches + annotated tags) — non-destructive
+        echo "=== Step 1: Backing up PR heads (non-destructive) ==="
+        for pr in ${BACKUP_PRS}; do
+          info="$(get_pr_head ${pr})"
+          if [ -z "${info}" ]; then
+            echo "PR #${pr} not found or inaccessible, skipping backup."
+            continue
+          fi
+          head_ref=$(echo "${info}" | awk '{print $1}')
+          head_sha=$(echo "${info}" | awk '{print $2}')
+          if [ -z "${head_ref}" ]; then
+            echo "PR #${pr} has no head ref; skipping."
+            continue
+          fi
+          BACKUP_BRANCH="backup/pr-${pr}-${DATE}"
+          TAG="backup/pr-${pr}-${DATE}"
+          echo "Backing up PR #${pr}: head ${head_ref} (${head_sha}) -> branch ${BACKUP_BRANCH}, tag ${TAG}"
+
+          # fetch head if available and create backup branch from that ref or sha
+          git fetch origin "${head_ref}:refs/remotes/origin/${head_ref}" || true
+          if git show-ref --verify --quiet "refs/remotes/origin/${head_ref}"; then
+            git checkout -B "${BACKUP_BRANCH}" "refs/remotes/origin/${head_ref}"
+          else
+            git checkout -B "${BACKUP_BRANCH}" "${head_sha}"
+          fi
+
+          git push origin "${BACKUP_BRANCH}:${BACKUP_BRANCH}" || true
+          # create annotated tag pointing to the head sha and push tag
+          git tag -a "${TAG}" "${head_sha}" -m "Backup of PR #${pr} before non-destructive operations (${DATE})" || true
+          git push origin "refs/tags/${TAG}" || true
+
+          # return to main-based working state
+          git checkout -B "work-${DATE}" "refs/remotes/origin/${BASE_BRANCH}" || true
+        done
+
+        # 2) For each PR, create a new rebased test branch (do NOT touch original PR branches)
+        echo
+        echo "=== Step 2: Creating rebased test branches (non-destructive) ==="
+        for pr in ${EVAL_PRS}; do
+          info="$(get_pr_head ${pr})"
+          if [ -z "${info}" ]; then
+            echo "PR #${pr} not available; skipping."
+            continue
+          fi
+          head_ref=$(echo "${info}" | awk '{print $1}')
+          head_sha=$(echo "${info}" | awk '{print $2}')
+          NEW_BRANCH="pr-${pr}-rebase-${DATE}"
+          echo "Preparing rebased test branch ${NEW_BRANCH} from PR #${pr} (head ${head_ref} / ${head_sha})"
+
+          # create new branch from the PR head commit
+          git fetch origin "${head_ref}:refs/remotes/origin/${head_ref}" || true
+          if git show-ref --verify --quiet "refs/remotes/origin/${head_ref}"; then
+            git checkout -B "${NEW_BRANCH}" "refs/remotes/origin/${head_ref}"
+          else
+            git checkout -B "${NEW_BRANCH}" "${head_sha}"
+          fi
+
+          # rebase onto latest main
+          git fetch origin "${BASE_BRANCH}:refs/remotes/origin/${BASE_BRANCH}"
+          set +e
+          git rebase "refs/remotes/origin/${BASE_BRANCH}"
+          REBASE_RES=$?
+          set -e
+          if [ ${REBASE_RES} -ne 0 ]; then
+            echo "Rebase conflict for PR #${pr} into ${NEW_BRANCH}. Aborting rebase and creating an issue for manual resolution."
+            git rebase --abort || true
+            # push an unrebased inspection branch so maintainers can see the original
+            UNREBASED_BRANCH="${NEW_BRANCH}-unrebased"
+            git checkout -B "${UNREBASED_BRANCH}" "${head_sha}"
+            git push origin "${UNREBASED_BRANCH}:${UNREBASED_BRANCH}" || true
+            gh issue create --repo "${REPO}" --title "Rebase needed for PR #${pr}" --body "Automatic rebase of PR #${pr} into ${NEW_BRANCH} onto ${BASE_BRANCH} failed. A non-destructive inspection branch ${UNREBASED_BRANCH} was pushed. Please rebase and resolve manually if desired."
+            # return to base
+            git checkout -B "work-${DATE}" "refs/remotes/origin/${BASE_BRANCH}" || true
+            continue
+          fi
+
+          # push the new rebased branch (non-destructive)
+          git push origin "${NEW_BRANCH}:${NEW_BRANCH}" || true
+          # create a new PR from this branch (original PR remains intact)
+          gh pr create --repo "${REPO}" --title "Rebased test: PR #${pr} → ${NEW_BRANCH}" --body "Non-destructive rebased test branch for PR #${pr}. Originals remain untouched. CI will run on this PR." --base "${BASE_BRANCH}" --head "${NEW_BRANCH}" || true
+
+          # return to a clean work branch based on main
+          git checkout -B "work-${DATE}" "refs/remotes/origin/${BASE_BRANCH}" || true
+        done
+
+        # 3) Consolidate refactors (24,25,26) into a new consolidated branch (non-destructive)
+        echo
+        echo "=== Step 3: Consolidating refactor PRs into a single branch (non-destructive) ==="
+        CONS_BRANCH="refactor/variable-names-consolidated-${DATE}"
+        git checkout -B "${CONS_BRANCH}" "refs/remotes/origin/${BASE_BRANCH}" || true
+
+        for pr in ${REFACT_PRS}; do
+          info="$(get_pr_head ${pr})"
+          if [ -z "${info}" ]; then
+            echo "PR #${pr} head not found; skipping."
+            continue
+          fi
+          head_ref=$(echo "${info}" | awk '{print $1}')
+          head_sha=$(echo "${info}" | awk '{print $2}')
+          echo "Attempting to merge PR #${pr} head (${head_ref}) into ${CONS_BRANCH} (non-destructive)"
+          git fetch origin "${head_ref}:refs/remotes/temp/${head_ref}" || true
+          set +e
+          git merge --no-edit "refs/remotes/temp/${head_ref}"
+          MERGE_RES=$?
+          set -e
+          if [ ${MERGE_RES} -ne 0 ]; then
+            echo "Conflict merging PR #${pr} into ${CONS_BRANCH}. Aborting merge and opening an issue for manual resolution."
+            git merge --abort || true
+            gh issue create --repo "${REPO}" --title "Merge conflict: consolidate PR #${pr}" --body "Automatic attempt to merge PR #${pr} into ${CONS_BRANCH} encountered conflicts. Please resolve manually if these changes are desired. Original PR left intact."
+          else
+            echo "Merged PR #${pr} into ${CONS_BRANCH}."
+          fi
+        done
+
+        # Push consolidated branch and open a PR for review/CI
+        git push origin "${CONS_BRANCH}:${CONS_BRANCH}" || true
+        gh pr create --repo "${REPO}" --title "Consolidated variable-name refactor (non-destructive)" --body "Consolidated non-destructive branch collecting non-conflicting parts of PRs: ${REFACT_PRS}. Originals remain intact." --base "${BASE_BRANCH}" --head "${CONS_BRANCH}" || true
+
+        echo
+        echo "=== Completed non-destructive operations ==="
+        echo "Backups created and pushed for PRs: ${BACKUP_PRS}"
+        echo "Rebased test PRs created for: ${EVAL_PRS}"
+        echo "Consolidated refactor PR created: ${CONS_BRANCH}"
+        echo
+        echo "Next actions for maintainers:"
+        echo " - Review the newly opened PRs (they are test/rebased branches)."
+        echo " - Merge only if CI is green and code review is satisfied."
+        echo " - Optionally, after verifying merged results, close original/duplicate PRs with comments linking to the new merged PRs. Originals are preserved until you choose to close them."
+        echo
+        echo "Log note: all original PR branches and history were left intact (no force-pushes, no deletions)."

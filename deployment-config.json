@@ -1,0 +1,24 @@
+{
+  "domain": "www.aiwebe.online",
+  "ports": {
+    "frontend": 3000,
+    "python_backend": 8000,
+    "websocket": 8080,
+    "metrics": 9090
+  },
+  "services": {
+    "node": "unified-server.js",
+    "python": "unified_system_with_exchanges.py"
+  },
+  "exchanges": ["ndax", "binance"],
+  "features": {
+    "realTimeTrading": true,
+    "websocketStreaming": true,
+    "observability": true,
+    "solvencyMonitoring": true
+  },
+  "deployment": {
+    "methods": ["github_pages", "hybrid", "full_server", "railway"],
+    "default": "github_pages"
+  }
+}

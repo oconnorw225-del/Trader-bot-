@@ -1,0 +1,100 @@
+{
+  "name": "ndax-quantum-engine",
+  "version": "2.1.0",
+  "description": "Unified modular build for Quantum Trading and AI Freelance Automation with Auto-Start System",
+  "main": "src/index.js",
+  "type": "module",
+  "homepage": "https://www.aiwebe.online",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "server": "node unified-server.js",
+    "start": "node unified-server.js",
+    "backend": "python3 unified_system_with_exchanges.py",
+    "deploy": "gh-pages -d dist",
+    "predeploy": "npm run build",
+    "dev:full": "concurrently \"npm run dev\" \"npm run server\"",
+    "setup": "bash scripts/quick-setup.sh",
+    "register": "node scripts/registration-wizard.js",
+    "autostart": "node backend/nodejs/server.js",
+    "mobile": "echo 'Mobile app available at http://localhost:3000/mobile'",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+    "lint": "eslint src/ tests/ backend/nodejs/ --ext .js,.jsx",
+    "lint:fix": "eslint src/ tests/ backend/nodejs/ --ext .js,.jsx --fix",
+    "start:railway": "npm run build && node unified-server.js",
+    "ndax:test": "node scripts/ndax-endpoint-bot.js",
+    "earnings": "node scripts/earnings-report.js",
+    "earnings:json": "node scripts/earnings-report.js --json",
+    "earnings:demo": "node scripts/demo-earnings.js"
+  },
+  "keywords": [
+    "quantum-trading",
+    "ai-automation",
+    "freelance",
+    "trading-engine",
+    "quantum-algorithms"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@vercel/analytics": "^1.4.0",
+    "axios": "^1.13.2",
+    "cors": "^2.8.5",
+    "crypto-js": "^4.2.0",
+    "date-fns": "^3.0.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "lightweight-charts": "^4.1.3",
+    "lucide-react": "^0.554.0",
+    "morgan": "^1.10.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "recharts": "^2.9.0",
+    "winston": "^3.18.3",
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.23.0",
+    "@babel/preset-env": "^7.23.0",
+    "@babel/preset-react": "^7.22.15",
+    "@testing-library/jest-dom": "^6.1.3",
+    "@testing-library/react": "^14.0.0",
+    "@types/node": "^20.10.0",
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "@vitejs/plugin-react": "^5.1.1",
+    "concurrently": "^9.2.1",
+    "eslint": "^8.51.0",
+    "eslint-plugin-react": "^7.33.2",
+    "gh-pages": "^6.1.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^30.2.0",
+    "terser": "^5.31.3",
+    "typescript": "^5.3.2",
+    "vite": "^7.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "transform": {},
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/**/*.test.js"
+    ],
+    "setupFilesAfterEnv": [
+      "./tests/setup.js"
+    ]
+  }
+}

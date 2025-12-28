@@ -1,0 +1,37 @@
+# Branch List Configuration
+# This file contains the list of branches to be consolidated
+# Used by all consolidation scripts to ensure consistency
+
+# Backup branches (keep, do not create PRs)
+backup/main-before-bulk-merge
+
+# Feature branches to consolidate (create PRs for these)
+copilot/activate-all-features-railway
+copilot/add-automatic-cherry-pick-script
+copilot/add-autostart-system-features
+copilot/add-branch-audit-workflow
+copilot/add-todo-list-application
+copilot/add-todo-list-feature
+copilot/add-wallet-for-bots
+copilot/configure-copilot-instructions
+copilot/configure-dashboard-display
+copilot/consolidate-mobile-styles
+copilot/deploy-ndax-quantum-engine
+copilot/featuresafe-bulk-cleanup
+copilot/finish-original-issue
+copilot/fix-api-key-management
+copilot/fix-ci-cd-workflow-issues
+copilot/fix-copilot-access-issue
+copilot/fix-copilot-review-issue
+copilot/fix-failjob-async-await-issue
+copilot/fix-pull-request-comments
+copilot/improve-variable-and-function-names
+copilot/improve-variable-function-names
+copilot/merge-to-main
+copilot/numerous-pigeon
+copilot/push-newest-branches-to-main
+copilot/rebase-copilot-instructions-branch
+copilot/remove-all-duplicates
+copilot/remove-fork-invitation
+copilot/remove-forking-allowance
+copilot/repair-readme-merge-conflict
