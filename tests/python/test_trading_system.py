@@ -10,8 +10,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 
 from config import MODE, RISK_LIMITS, PROMOTION, ALLOW_LIVE
 from platform.ndax_test import NDAXTestClient
-from execution.governor import risk_check, allowed_size
+from execution.governor import risk_check, allowed_size, trigger_kill
 from execution.executor import execute
+from execution.promotion import win_rate, can_promote, record_trade, get_stats, reset_hourly_counter
 from strategy.chimera_core import decide
 from reporting.hourly import report
 
@@ -117,6 +118,49 @@ class TestGovernor:
         assert size == 250.0
 
 
+class TestPromotion:
+    """Tests for promotion module"""
+    
+    def test_record_trade_updates_stats(self):
+        """Test that recording trades updates statistics"""
+        stats_before = get_stats()
+        trades_before = stats_before["paper_trades"]
+        
+        record_trade("win")
+        
+        stats_after = get_stats()
+        assert stats_after["paper_trades"] == trades_before + 1
+        assert stats_after["wins"] == stats_before["wins"] + 1
+    
+    def test_win_rate_calculation(self):
+        """Test win rate calculation"""
+        # Reset stats
+        from execution.promotion import stats
+        stats["wins"] = 7
+        stats["losses"] = 3
+        
+        rate = win_rate()
+        assert rate == 0.7
+    
+    def test_win_rate_with_no_trades(self):
+        """Test win rate returns 0 when no trades"""
+        from execution.promotion import stats
+        stats["wins"] = 0
+        stats["losses"] = 0
+        
+        rate = win_rate()
+        assert rate == 0.0
+    
+    def test_reset_hourly_counter(self):
+        """Test hourly counter reset"""
+        from execution.promotion import stats
+        stats["trades_last_hour"] = 50
+        
+        reset_hourly_counter()
+        
+        assert stats["trades_last_hour"] == 0
+
+
 class TestExecutor:
     """Tests for executor module"""
     
@@ -169,6 +213,7 @@ if __name__ == "__main__":
         TestConfig,
         TestNDAXTestClient,
         TestGovernor,
+        TestPromotion,
         TestExecutor,
         TestChimeraCore,
         TestReporting

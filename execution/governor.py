@@ -3,7 +3,8 @@ Governor module for risk management and position sizing
 Enforces risk limits and validates trades before execution
 """
 
-from config import RISK_LIMITS, MODE
+from config import RISK_LIMITS
+import config
 
 
 def risk_check(state):
@@ -21,10 +22,12 @@ def risk_check(state):
     """
     # Check if drawdown exceeds hard stop loss limit
     if state["drawdown"] >= RISK_LIMITS["hard_stop_loss"]:
+        trigger_kill("HARD STOP LOSS")
         return False
     
     # Check if daily loss exceeds maximum allowed
     if state["daily_pnl"] <= -RISK_LIMITS["max_daily_loss"]:
+        trigger_kill("MAX DAILY LOSS")
         return False
     
     # Check if trade frequency exceeds limit
@@ -49,3 +52,14 @@ def allowed_size(balance):
     
     # Calculate max position size (max_position % of usable capital)
     return usable * RISK_LIMITS["max_position"]
+
+
+def trigger_kill(reason):
+    """
+    Activates the kill switch to halt all trading
+    
+    Args:
+        reason: String describing why the kill switch was activated
+    """
+    config.MODE = "HALTED"
+    print(f"🛑 KILL SWITCH ACTIVATED: {reason}")
