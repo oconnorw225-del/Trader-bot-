@@ -65,14 +65,27 @@ The bot will:
 
 **WARNING: Only enable live trading after thorough testing!**
 
-To enable live trading:
+To enable live trading, use environment variables:
 
-1. Edit `config.py`:
-   ```python
-   MODE = "LIVE_LIMITED"
-   ALLOW_LIVE = True  # 🔒 manually enable
-   ```
+**Option 1: Environment Variables (Recommended for production)**
+```bash
+# Set environment variables
+export BOT_MODE="LIVE_LIMITED"
+export ALLOW_LIVE="True"
 
+# Run the bot
+python3 main.py
+```
+
+**Option 2: Edit config.py (Not recommended)**
+```python
+# In config.py - hardcode values (overrides defaults)
+MODE = "LIVE_LIMITED"
+ALLOW_LIVE = True  # 🔒 manually enable
+```
+
+**Steps:**
+1. Set environment variables (see above)
 2. Ensure promotion criteria are met
 3. Configure live NDAX API credentials in your environment
 4. Run the bot
@@ -81,16 +94,43 @@ To enable live trading:
 
 To stop all trading:
 
-```python
-# In config.py
-MODE = "HALTED"
+```bash
+# Using environment variable
+export BOT_MODE="HALTED"
+python3 main.py
 ```
 
 ## Configuration
 
-### Risk Limits (`config.py`)
+### Environment Variables
 
-Adjust risk limits according to your risk tolerance:
+The system supports configuration via environment variables for flexible deployment:
+
+**Trading Mode:**
+```bash
+BOT_MODE="PAPER"              # PAPER | LIVE_LIMITED | HALTED (default: PAPER)
+ALLOW_LIVE="False"            # True | False (default: False)
+```
+
+**Risk Limits:**
+```bash
+CAPITAL_CAP="0.5"             # 0-1: Fraction of capital to use (default: 0.5)
+MAX_POSITION="0.05"           # 0-1: Max position size per trade (default: 0.05)
+MAX_TRADES_HOUR="100"         # Integer: Rate limit (default: 100)
+HARD_STOP_LOSS="0.30"         # 0-1: Drawdown kill switch (default: 0.30)
+MAX_DAILY_LOSS="0.50"         # 0-1: Daily loss limit (default: 0.50)
+```
+
+**Promotion Criteria:**
+```bash
+MIN_PAPER_MINUTES="60"        # Minimum runtime in minutes (default: 60)
+MIN_PAPER_TRADES="30"         # Minimum number of trades (default: 30)
+MIN_PAPER_WINRATE="0.70"      # Minimum win rate 0-1 (default: 0.70)
+```
+
+### Risk Limits (config.py)
+
+Default values in `config.py` (can be overridden by environment variables):
 
 ```python
 RISK_LIMITS = {
@@ -126,6 +166,37 @@ This tests:
 3. **Mode Separation**: Clear distinction between PAPER and LIVE modes
 4. **Kill Switch**: Emergency halt capability
 5. **Rate Limiting**: Prevents runaway trading
+
+## Deployment
+
+### Railway Deployment (Live Trading)
+
+The system includes a GitHub Actions workflow for automated deployment to Railway with live trading enabled.
+
+**Setup:**
+1. Add `RAILWAY_API_KEY` to your GitHub repository secrets
+2. Push to `main` branch to trigger deployment
+3. Railway environment will have:
+   - `BOT_MODE=LIVE_LIMITED`
+   - `ALLOW_LIVE=True`
+
+**Workflow file:** `.github/workflows/deploy-live-trader.yml`
+
+**Manual Railway deployment:**
+```bash
+# Set environment variables in Railway dashboard
+BOT_MODE=LIVE_LIMITED
+ALLOW_LIVE=True
+
+# Deploy
+railway up
+```
+
+**Security Notes:**
+- Never commit API keys or secrets to the repository
+- Use Railway's environment variable management for sensitive data
+- Always test thoroughly in PAPER mode before enabling live trading
+- Monitor logs and performance closely after deployment
 
 ## Module Documentation
 
