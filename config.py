@@ -20,9 +20,16 @@ RISK_LIMITS = {
 
 # Promotion criteria from PAPER to LIVE_LIMITED
 PROMOTION = {
-    "min_minutes": int(os.getenv("MIN_PAPER_MINUTES", 60)),        # Minimum runtime in minutes
-    "min_trades": int(os.getenv("MIN_PAPER_TRADES", 30)),          # Minimum number of trades
+    "min_minutes": int(os.getenv("MIN_PAPER_MINUTES", 30)),        # Minimum runtime in minutes (reduced to 30)
+    "min_trades": int(os.getenv("MIN_PAPER_TRADES", 15)),          # Minimum number of trades (adjusted for 30min)
     "min_win_rate": float(os.getenv("MIN_PAPER_WINRATE", 0.70))    # Minimum 70% win rate required
+}
+
+# Demotion criteria from LIVE_LIMITED back to PAPER
+DEMOTION = {
+    "min_live_minutes": int(os.getenv("MIN_LIVE_MINUTES", 60)),    # Check performance after 60 min live
+    "min_win_rate": float(os.getenv("DEMOTION_WINRATE", 0.60)),    # Demote if win rate drops below 60%
+    "retraining_minutes": int(os.getenv("RETRAINING_MINUTES", 60)) # 1 hour paper mode for retraining
 }
 
 # Safety lock - must be manually enabled for live trading

@@ -1,13 +1,16 @@
 """
 Main Bot Runner for NDAX Quantum Engine Trading System
 Orchestrates the trading loop with paper/live mode controls
-Includes promotion system and comprehensive reporting
+Includes adaptive promotion/demotion system and comprehensive reporting
 """
 
 from platform.ndax_test import NDAXTestClient
 from strategy.chimera_core import decide
 from execution.executor import execute
-from execution.promotion import check_promotion, record_trade, get_stats, reset_hourly_counter
+from execution.promotion import (
+    check_promotion, check_demotion, record_trade, 
+    get_stats, reset_hourly_counter, get_mode_info
+)
 from reporting.hourly import report
 import time
 from datetime import datetime
@@ -17,14 +20,19 @@ def main():
     """
     Main trading loop
     Initializes the platform, manages state, and executes trading strategies
-    Tracks performance and manages promotion from PAPER to LIVE_LIMITED
+    Tracks performance and manages adaptive promotion/demotion between modes
+    Features:
+    - Auto-promotion from PAPER to LIVE after 30min with 70% win rate
+    - Auto-demotion from LIVE to PAPER if performance drops below 60%
+    - 1-hour retraining period in PAPER mode before returning to LIVE
     """
     # Initialize NDAX test client
     client = NDAXTestClient()
     platform = client.get_platform_info()
     print("Platform:", platform)
-    print("Starting NDAX Quantum Engine...")
-    print("Mode: PAPER (will auto-promote if criteria met)")
+    print("Starting NDAX Quantum Engine with Adaptive Mode Switching...")
+    print("Mode: PAPER (will auto-promote after 30min with 70%+ win rate)")
+    print("Adaptive: Returns to PAPER for 1hr retraining if live performance drops\n")
 
     # Initialize trading state
     state = {
@@ -57,8 +65,11 @@ def main():
                 outcome = "win" if random.random() < 0.7 else "loss"
                 record_trade(outcome)
             
-            # Check for promotion eligibility
+            # Check for promotion eligibility (PAPER -> LIVE)
             check_promotion()
+            
+            # Check for demotion necessity (LIVE -> PAPER)
+            check_demotion()
             
             # Reset hourly counter if new hour
             current_hour = datetime.now().hour
@@ -70,7 +81,8 @@ def main():
             # Generate hourly report (at the top of each hour)
             current_minute = datetime.now().minute
             if current_minute == 0 and current_minute != last_report_minute:
-                report(state, get_stats())
+                mode_info = get_mode_info()
+                report(state, get_stats(), mode_info)
                 last_report_minute = current_minute
             
             # Wait 60 seconds before next iteration
@@ -79,7 +91,8 @@ def main():
         except KeyboardInterrupt:
             print("\n\nShutting down gracefully...")
             print("Final report:")
-            report(state, get_stats())
+            mode_info = get_mode_info()
+            report(state, get_stats(), mode_info)
             break
         except Exception as e:
             print(f"Error in main loop: {e}")
