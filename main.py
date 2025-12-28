@@ -22,17 +22,20 @@ def main():
     Initializes the platform, manages state, and executes trading strategies
     Tracks performance and manages adaptive promotion/demotion between modes
     Features:
-    - Auto-promotion from PAPER to LIVE after 30min with 70% win rate
+    - Auto-promotion from PAPER to LIVE after 15min with 70% win rate
     - Auto-demotion from LIVE to PAPER if performance drops below 60%
-    - 1-hour retraining period in PAPER mode before returning to LIVE
+    - 15-minute retraining period in PAPER mode before returning to LIVE
+    - After 3 consecutive good live runs (75%+ win rate), paper trading is SKIPPED
+    - Platform prioritization for resource optimization
     """
     # Initialize NDAX test client
     client = NDAXTestClient()
     platform = client.get_platform_info()
     print("Platform:", platform)
     print("Starting NDAX Quantum Engine with Adaptive Mode Switching...")
-    print("Mode: PAPER (will auto-promote after 30min with 70%+ win rate)")
-    print("Adaptive: Returns to PAPER for 1hr retraining if live performance drops\n")
+    print("Mode: PAPER (will auto-promote after 15min with 70%+ win rate)")
+    print("Adaptive: Returns to PAPER for 15min retraining if live performance drops")
+    print("Smart Skip: After 3 consecutive good runs (75%+), paper training SKIPPED\n")
 
     # Initialize trading state
     state = {

@@ -24,7 +24,10 @@ stats = {
     "live_trades": 0,
     "live_wins": 0,
     "live_losses": 0,
-    "mode_switches": 0
+    "mode_switches": 0,
+    "consecutive_good_runs": 0,  # Track consecutive successful live sessions
+    "current_session_start": None,  # Track current session performance
+    "can_skip_paper": False  # Flag indicating if paper mode can be skipped
 }
 
 
@@ -53,11 +56,18 @@ def live_win_rate():
 def can_promote():
     """
     Checks if paper trading performance meets promotion criteria
+    Implements adaptive paper trading skip after consecutive good runs
     
     Returns:
         bool: True if all promotion criteria are met
     """
     global RETRAINING_START_TIME
+    
+    # Check if we can skip paper trading entirely (after 3+ consecutive good runs)
+    if stats["consecutive_good_runs"] >= PROMOTION["skip_after_good_runs"]:
+        stats["can_skip_paper"] = True
+        # Instant promotion - no paper trading needed
+        return True
     
     # If in retraining period, check if retraining is complete
     if RETRAINING_START_TIME is not None:
@@ -111,6 +121,7 @@ def check_promotion():
     """
     Checks promotion criteria and upgrades MODE if eligible
     Requires ALLOW_LIVE to be True for safety
+    Implements adaptive promotion with paper skip after good runs
     """
     global LIVE_START_TIME
     
@@ -118,41 +129,80 @@ def check_promotion():
         config.MODE = "LIVE_LIMITED"
         LIVE_START_TIME = datetime.now()
         stats["mode_switches"] += 1
+        stats["current_session_start"] = datetime.now()
         
         print("\n" + "="*60)
-        print("⚡ PROMOTION TRIGGERED: LIVE_LIMITED MODE ENABLED")
-        print("="*60)
-        print(f"   Paper runtime: {(datetime.now() - START_TIME).total_seconds() / 60:.1f} min")
-        print(f"   Paper trades: {stats['paper_trades']}")
-        print(f"   Paper win rate: {win_rate():.1%}")
+        if stats["can_skip_paper"]:
+            print("🚀 INSTANT PROMOTION: PAPER SKIPPED (Proven Strategy)")
+            print("="*60)
+            print(f"   Consecutive good runs: {stats['consecutive_good_runs']}")
+            print(f"   Paper trading: SKIPPED")
+        else:
+            print("⚡ PROMOTION TRIGGERED: LIVE_LIMITED MODE ENABLED")
+            print("="*60)
+            print(f"   Paper runtime: {(datetime.now() - START_TIME).total_seconds() / 60:.1f} min")
+            print(f"   Paper trades: {stats['paper_trades']}")
+            print(f"   Paper win rate: {win_rate():.1%}")
         print(f"   Mode switches: {stats['mode_switches']}")
         print("="*60 + "\n")
+        
+        # Reset skip flag after use
+        stats["can_skip_paper"] = False
 
 
 def check_demotion():
     """
     Checks if live trading performance warrants demotion back to PAPER
     Implements adaptive learning by returning to paper mode for strategy adjustment
+    Tracks consecutive good runs for paper trading optimization
     """
-    global LIVE_START_TIME, RETRAINING_START_TIME
+    global LIVE_START_TIME, RETRAINING_START_TIME, START_TIME
     
-    if config.MODE == "LIVE_LIMITED" and should_demote():
-        config.MODE = "PAPER"
-        RETRAINING_START_TIME = datetime.now()
-        stats["mode_switches"] += 1
-        
-        live_duration = (datetime.now() - LIVE_START_TIME).total_seconds() / 60
-        LIVE_START_TIME = None
-        
-        print("\n" + "="*60)
-        print("⚠️  DEMOTION TRIGGERED: RETURNING TO PAPER MODE")
-        print("="*60)
-        print(f"   Live duration: {live_duration:.1f} min")
-        print(f"   Live trades: {stats['live_trades']}")
-        print(f"   Live win rate: {live_win_rate():.1%}")
-        print(f"   Retraining for: {DEMOTION['retraining_minutes']} minutes")
-        print(f"   Mode switches: {stats['mode_switches']}")
-        print("="*60 + "\n")
+    if config.MODE == "LIVE_LIMITED":
+        # Check if session ended successfully (good performance)
+        if LIVE_START_TIME and stats["current_session_start"]:
+            session_duration = (datetime.now() - stats["current_session_start"]).total_seconds() / 60
+            
+            # If session is long enough, evaluate performance
+            if session_duration >= DEMOTION["min_live_minutes"]:
+                current_live_wr = live_win_rate()
+                
+                # Check if this was a "good run" (above threshold)
+                if current_live_wr >= DEMOTION["good_run_threshold"]:
+                    stats["consecutive_good_runs"] += 1
+                    print(f"✅ Good live session completed! Consecutive good runs: {stats['consecutive_good_runs']}")
+                    
+                    # Reset session tracking for next session
+                    stats["current_session_start"] = None
+                    
+                    # Don't demote - continue live trading or allow easy re-entry
+                    if stats["consecutive_good_runs"] >= PROMOTION["skip_after_good_runs"]:
+                        print(f"🎯 Paper trading will be SKIPPED on next promotion (proven strategy)")
+                
+        # Check if demotion is needed (poor performance)
+        if should_demote():
+            config.MODE = "PAPER"
+            RETRAINING_START_TIME = datetime.now()
+            START_TIME = datetime.now()  # Reset paper timer for quick retraining
+            stats["mode_switches"] += 1
+            
+            # Reset consecutive good runs counter on poor performance
+            stats["consecutive_good_runs"] = 0
+            stats["current_session_start"] = None
+            
+            live_duration = (datetime.now() - LIVE_START_TIME).total_seconds() / 60
+            LIVE_START_TIME = None
+            
+            print("\n" + "="*60)
+            print("⚠️  DEMOTION TRIGGERED: RETURNING TO PAPER MODE")
+            print("="*60)
+            print(f"   Live duration: {live_duration:.1f} min")
+            print(f"   Live trades: {stats['live_trades']}")
+            print(f"   Live win rate: {live_win_rate():.1%}")
+            print(f"   Retraining for: {DEMOTION['retraining_minutes']} minutes")
+            print(f"   Mode switches: {stats['mode_switches']}")
+            print(f"   Consecutive good runs: RESET to 0")
+            print("="*60 + "\n")
 
 
 def record_trade(outcome, pnl=0.0):

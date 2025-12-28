@@ -20,16 +20,27 @@ RISK_LIMITS = {
 
 # Promotion criteria from PAPER to LIVE_LIMITED
 PROMOTION = {
-    "min_minutes": int(os.getenv("MIN_PAPER_MINUTES", 30)),        # Minimum runtime in minutes (reduced to 30)
-    "min_trades": int(os.getenv("MIN_PAPER_TRADES", 15)),          # Minimum number of trades (adjusted for 30min)
-    "min_win_rate": float(os.getenv("MIN_PAPER_WINRATE", 0.70))    # Minimum 70% win rate required
+    "min_minutes": int(os.getenv("MIN_PAPER_MINUTES", 15)),        # Minimum runtime in minutes (reduced to 15)
+    "min_trades": int(os.getenv("MIN_PAPER_TRADES", 8)),           # Minimum number of trades (adjusted for 15min)
+    "min_win_rate": float(os.getenv("MIN_PAPER_WINRATE", 0.70)),   # Minimum 70% win rate required
+    "skip_after_good_runs": int(os.getenv("SKIP_PAPER_AFTER", 3)) # Skip paper after N consecutive good live runs
 }
 
 # Demotion criteria from LIVE_LIMITED back to PAPER
 DEMOTION = {
     "min_live_minutes": int(os.getenv("MIN_LIVE_MINUTES", 60)),    # Check performance after 60 min live
     "min_win_rate": float(os.getenv("DEMOTION_WINRATE", 0.60)),    # Demote if win rate drops below 60%
-    "retraining_minutes": int(os.getenv("RETRAINING_MINUTES", 60)) # 1 hour paper mode for retraining
+    "retraining_minutes": int(os.getenv("RETRAINING_MINUTES", 15)),# 15 min paper mode for retraining (reduced)
+    "good_run_threshold": float(os.getenv("GOOD_RUN_THRESHOLD", 0.75)) # 75% win rate considered "good"
+}
+
+# Platform prioritization configuration
+PLATFORM_PRIORITY = {
+    "enabled": os.getenv("PLATFORM_PRIORITY_ENABLED", "True") == "True",
+    "recalculate_hours": int(os.getenv("PRIORITY_RECALC_HOURS", 4)),  # Recalculate priority every 4 hours
+    "top_allocation": float(os.getenv("TOP_ALLOCATION", 0.60)),        # 60% to top performer
+    "second_allocation": float(os.getenv("SECOND_ALLOCATION", 0.30)),  # 30% to second
+    "explore_allocation": float(os.getenv("EXPLORE_ALLOCATION", 0.10)) # 10% to exploration
 }
 
 # Safety lock - must be manually enabled for live trading
