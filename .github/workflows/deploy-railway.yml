@@ -1,0 +1,56 @@
+name: Deploy to Railway
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          railway link ${{ secrets.RAILWAY_PROJECT_ID }}
+          railway up --detach
+      
+      - name: Set Environment Variables
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          railway variables set NDAX_API_KEY="${{ secrets.NDAX_API_KEY }}"
+          railway variables set NDAX_API_SECRET="${{ secrets.NDAX_API_SECRET }}"
+          railway variables set NDAX_USER_ID="${{ secrets.NDAX_USER_ID }}"
+          railway variables set NDAX_ACCOUNT_ID="${{ secrets.NDAX_ACCOUNT_ID }}"
+          railway variables set DATABASE_URL="${{ secrets.DATABASE_URL }}"
+          railway variables set REDIS_URL="${{ secrets.REDIS_URL }}"
+          railway variables set SESSION_SECRET="${{ secrets.SESSION_SECRET }}"
+          railway variables set JWT_SECRET="${{ secrets.JWT_SECRET }}"
+          railway variables set ENCRYPTION_KEY="${{ secrets.ENCRYPTION_KEY }}"
+          railway variables set ACCESS_PASSWORD="${{ secrets.ACCESS_PASSWORD }}"
+      
+      - name: Verify Deployment
+        run: |
+          echo "Waiting for deployment to complete..."
+          sleep 60
+          curl -f https://www.aiwebe.online/api/health || exit 1
+          echo "✅ Deployment successful!"
