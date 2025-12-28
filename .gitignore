@@ -66,3 +66,6 @@ output/*.json
 output/*.md
 output/*.csv
 output/history/*.json
+
+# Generated PR data (temporary files for PR creation)
+.github/pr-data/
