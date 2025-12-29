@@ -10,6 +10,7 @@ import hashlib
 import time
 from typing import Dict, Any
 import logging
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -82,41 +83,59 @@ class NDAXLiveClient:
         """
         Get live account balances from NDAX
         
-        TODO: Implement actual API call to NDAX
-        See NDAX API documentation: https://ndax.io/api
-        
         Returns:
             dict: Current balances for each currency
+            
+        Raises:
+            requests.RequestException: If API call fails
         """
-        # TODO: Implement actual NDAX API call
-        # Example API call structure:
-        #
-        # import requests
-        # 
-        # nonce = str(int(time.time() * 1000))
-        # endpoint = '/GetAccountPositions'
-        # signature = self._generate_signature(endpoint, nonce)
-        # 
-        # headers = {
-        #     'APIKey': self.api_key,
-        #     'Signature': signature,
-        #     'Nonce': nonce
-        # }
-        # 
-        # response = requests.get(
-        #     f"{self.base_url}{endpoint}",
-        #     headers=headers,
-        #     params={'AccountId': self.account_id, 'OMSId': 1}
-        # )
-        # 
-        # return response.json()
-        
-        logger.warning("get_balance() not yet implemented - returning placeholder")
-        return {
-            "CAD": 0.0,
-            "BTC": 0.0,
-            "ETH": 0.0
-        }
+        try:
+            nonce = str(int(time.time() * 1000))
+            endpoint = '/api/GetAccountPositions'
+            signature = self._generate_signature(endpoint, nonce)
+            
+            headers = {
+                'APIKey': self.api_key,
+                'Signature': signature,
+                'Nonce': nonce
+            }
+            
+            params = {
+                'AccountId': int(self.account_id),
+                'OMSId': 1
+            }
+            
+            response = requests.get(
+                f"{self.base_url}{endpoint}",
+                headers=headers,
+                params=params,
+                timeout=10
+            )
+            response.raise_for_status()
+            
+            # Parse response and convert to balance dictionary
+            positions = response.json()
+            balances = {}
+            
+            for position in positions:
+                product_symbol = position.get('ProductSymbol', '')
+                amount = float(position.get('Amount', 0.0))
+                balances[product_symbol] = amount
+            
+            logger.info(f"Retrieved balances for {len(balances)} currencies")
+            return balances
+            
+        except requests.RequestException as e:
+            logger.error(f"Failed to retrieve balances from NDAX: {e}")
+            raise
+        except (ValueError, KeyError) as e:
+            logger.error(f"Failed to parse balance response: {e}")
+            # Return empty balances on parse error
+            return {
+                "CAD": 0.0,
+                "BTC": 0.0,
+                "ETH": 0.0
+            }
     
     def get_price(self, pair: str) -> float:
         """
@@ -125,30 +144,41 @@ class NDAXLiveClient:
         Args:
             pair: Trading pair (e.g., "BTC/CAD")
         
-        TODO: Implement actual API call to NDAX
-        
         Returns:
             float: Current market price
+            
+        Raises:
+            requests.RequestException: If API call fails
         """
-        # TODO: Implement actual NDAX API call
-        # Example API call structure:
-        #
-        # import requests
-        # 
-        # # NDAX uses instrument IDs instead of pair names
-        # instrument_id = self._get_instrument_id(pair)
-        # 
-        # endpoint = '/GetLevel1'
-        # response = requests.get(
-        #     f"{self.base_url}{endpoint}",
-        #     params={'InstrumentId': instrument_id, 'OMSId': 1}
-        # )
-        # 
-        # data = response.json()
-        # return data.get('LastTradedPx', 0.0)
-        
-        logger.warning(f"get_price({pair}) not yet implemented - returning placeholder")
-        return 0.0
+        try:
+            # NDAX uses instrument IDs instead of pair names
+            instrument_id = self._get_instrument_id(pair)
+            
+            endpoint = '/api/GetLevel1'
+            params = {
+                'InstrumentId': instrument_id,
+                'OMSId': 1
+            }
+            
+            response = requests.get(
+                f"{self.base_url}{endpoint}",
+                params=params,
+                timeout=10
+            )
+            response.raise_for_status()
+            
+            data = response.json()
+            last_price = float(data.get('LastTradedPx', 0.0))
+            
+            logger.info(f"Retrieved price for {pair}: {last_price}")
+            return last_price
+            
+        except requests.RequestException as e:
+            logger.error(f"Failed to retrieve price for {pair}: {e}")
+            raise
+        except (ValueError, KeyError) as e:
+            logger.error(f"Failed to parse price response for {pair}: {e}")
+            return 0.0
     
     def place_order(self, order: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -156,54 +186,84 @@ class NDAXLiveClient:
         
         Args:
             order: Order details including symbol, side, quantity, price
+                   Required keys: 'symbol', 'side', 'quantity', 'price'
+                   Optional keys: 'order_type' (default: 'Limit'), 'time_in_force' (default: 'GTC')
         
-        TODO: Implement actual API call to NDAX
-        IMPORTANT: This will use REAL MONEY once implemented
+        IMPORTANT: This uses REAL MONEY
         
         Returns:
-            dict: Order execution result
+            dict: Order execution result with status, order_id, and any error messages
+            
+        Raises:
+            ValueError: If required order fields are missing
+            requests.RequestException: If API call fails
         """
-        # TODO: Implement actual NDAX API call
-        # Example API call structure:
-        #
-        # import requests
-        # 
-        # nonce = str(int(time.time() * 1000))
-        # endpoint = '/SendOrder'
-        # 
-        # order_payload = {
-        #     'InstrumentId': self._get_instrument_id(order['symbol']),
-        #     'OMSId': 1,
-        #     'AccountId': int(self.account_id),
-        #     'Side': 0 if order['side'] == 'buy' else 1,
-        #     'OrderType': 2,  # Limit order
-        #     'Quantity': order['quantity'],
-        #     'LimitPrice': order['price'],
-        #     'TimeInForce': 1,  # GTC (Good Till Cancel)
-        # }
-        # 
-        # signature = self._generate_signature(endpoint + str(order_payload), nonce)
-        # 
-        # headers = {
-        #     'APIKey': self.api_key,
-        #     'Signature': signature,
-        #     'Nonce': nonce,
-        #     'Content-Type': 'application/json'
-        # }
-        # 
-        # response = requests.post(
-        #     f"{self.base_url}{endpoint}",
-        #     headers=headers,
-        #     json=order_payload
-        # )
-        # 
-        # return response.json()
+        # Validate required fields
+        required_fields = ['symbol', 'side', 'quantity', 'price']
+        missing_fields = [field for field in required_fields if field not in order]
+        if missing_fields:
+            raise ValueError(f"Missing required order fields: {', '.join(missing_fields)}")
         
-        logger.error("place_order() not yet implemented - order NOT executed")
-        raise NotImplementedError(
-            "place_order() must be implemented before live trading. "
-            "See NDAX API documentation: https://ndax.io/api"
-        )
+        try:
+            nonce = str(int(time.time() * 1000))
+            endpoint = '/api/SendOrder'
+            
+            # Build order payload
+            order_payload = {
+                'InstrumentId': self._get_instrument_id(order['symbol']),
+                'OMSId': 1,
+                'AccountId': int(self.account_id),
+                'Side': order['side'].lower(),  # 'buy' or 'sell'
+                'OrderType': order.get('order_type', 'Limit'),
+                'Quantity': float(order['quantity']),
+                'LimitPrice': float(order['price']),
+                'TimeInForce': order.get('time_in_force', 'GTC'),
+            }
+            
+            # Generate signature for authentication
+            signature = self._generate_signature(endpoint + str(order_payload), nonce)
+            
+            headers = {
+                'APIKey': self.api_key,
+                'Signature': signature,
+                'Nonce': nonce,
+                'Content-Type': 'application/json'
+            }
+            
+            logger.warning(f"⚠️  PLACING LIVE ORDER: {order['side']} {order['quantity']} {order['symbol']} @ {order['price']}")
+            
+            response = requests.post(
+                f"{self.base_url}{endpoint}",
+                headers=headers,
+                json=order_payload,
+                timeout=10
+            )
+            response.raise_for_status()
+            
+            result = response.json()
+            order_id = result.get('OrderId', None)
+            status = result.get('status', 'Unknown')
+            error_msg = result.get('errormsg', '')
+            
+            if status == 'Accepted':
+                logger.info(f"✅ Order placed successfully. Order ID: {order_id}")
+            else:
+                logger.error(f"❌ Order placement failed. Status: {status}, Error: {error_msg}")
+            
+            return {
+                'success': status == 'Accepted',
+                'order_id': order_id,
+                'status': status,
+                'error': error_msg,
+                'timestamp': int(time.time())
+            }
+            
+        except requests.RequestException as e:
+            logger.error(f"Failed to place order on NDAX: {e}")
+            raise
+        except (ValueError, KeyError) as e:
+            logger.error(f"Failed to build or parse order request: {e}")
+            raise
     
     def _generate_signature(self, message: str, nonce: str) -> str:
         """
