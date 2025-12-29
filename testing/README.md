@@ -20,7 +20,7 @@ npm start
 ### Access Dashboard
 
 - **Local**: http://localhost:3001
-- **Railway**: https://your-app.railway.app (after deployment)
+- **Railway**: https://fearless-radiance.up.railway.app (after deployment)
 
 ### Testing Features
 

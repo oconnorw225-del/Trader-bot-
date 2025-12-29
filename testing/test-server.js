@@ -196,7 +196,7 @@ app.get('/', (req, res) => {
           </div>
           <p style="margin: 20px 0;">Dashboard will launch on:</p>
           <div class="code-block">
-            <code>https://your-app.railway.app</code>
+            <code>https://fearless-radiance.up.railway.app</code>
           </div>
           <button class="launch-btn">✓ All Systems Ready</button>
           <button class="launch-btn">→ Deploy to Railway</button>

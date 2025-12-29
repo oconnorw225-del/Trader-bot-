@@ -18,7 +18,7 @@ This document provides complete API documentation for both Node.js and Python ba
 
 - **Node.js Backend:** `http://localhost:3000/api`
 - **Python Backend:** `http://localhost:5000/api`
-- **Production (Railway):** `https://your-app.railway.app/api`
+- **Production (Railway):** `https://fearless-radiance.up.railway.app/api`
 
 ## Authentication
 
