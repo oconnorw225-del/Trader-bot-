@@ -14,7 +14,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Configuration
-REPO="oconnorw225-del/ndax-quantum-engine"
+REPO="oconnorw225-del/Trader-bot-"
 MAIN_BRANCH="main"
 CONSOLIDATION_DATE=$(date +%Y%m%d)
 CONSOLIDATION_BRANCH="consolidation/merge-all-branches-${CONSOLIDATION_DATE}"
