@@ -653,12 +653,536 @@ test(trading): add tests for order execution
 5. Request review from maintainers
 6. Squash commits before merging
 
+## Wallet Management and Fund Retrieval
+
+### Overview
+The NDAX Quantum Engine includes comprehensive wallet management features for handling cryptocurrency wallets, retrieving funds, and managing blocked or stuck transactions. This section provides guidelines for implementing wallet-related functionality.
+
+### Wallet Architecture
+
+**Key Components:**
+- `src/shared/blockchainManager.js` - Web3 integration for Ethereum-based wallets
+- `src/shared/ethereumValidator.js` - Ethereum address validation utilities
+- `platform/ndax_live.py` - NDAX exchange wallet integration
+- `platform/ndax_test.py` - Test/paper trading wallet simulation
+- `scan_wallets.py` - Multi-chain wallet scanning utility (BTC, TRON)
+
+### Wallet Operations
+
+#### 1. Wallet Connection and Validation
+
+**Always validate wallet addresses before operations:**
+
+```javascript
+// ✅ GOOD: Validate before using
+import { validateEthereumAddress } from '../shared/ethereumValidator.js';
+
+const processWallet = async (address) => {
+  const validation = validateEthereumAddress(address);
+  
+  if (!validation.isValid) {
+    throw new Error(`Invalid wallet address: ${validation.error}`);
+  }
+  
+  // Use normalized address for consistency
+  const normalizedAddress = validation.address;
+  return await performWalletOperation(normalizedAddress);
+};
+
+// ❌ BAD: No validation, inconsistent case handling
+const processWallet = async (address) => {
+  return await performWalletOperation(address); // Might fail on invalid input
+};
+```
+
+#### 2. Balance Retrieval
+
+**Implement proper error handling and retry logic:**
+
+```javascript
+// ✅ GOOD: With retry logic and proper error handling
+const getWalletBalance = async (address, maxRetries = 3) => {
+  let lastError;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const balance = await blockchain.getBalance(address);
+      logger.info(`Retrieved balance for ${address}: ${balance} ETH`);
+      return { success: true, balance, address };
+    } catch (error) {
+      lastError = error;
+      logger.warn(`Balance retrieval attempt ${attempt}/${maxRetries} failed: ${error.message}`);
+      
+      if (attempt < maxRetries) {
+        // Exponential backoff: 2^attempt seconds
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+      }
+    }
+  }
+  
+  return { 
+    success: false, 
+    error: `Failed after ${maxRetries} attempts: ${lastError.message}`,
+    address 
+  };
+};
+
+// ❌ BAD: No error handling or retry logic
+const getWalletBalance = async (address) => {
+  const balance = await blockchain.getBalance(address); // Fails on network issues
+  return balance;
+};
+```
+
+**NDAX Exchange Balance Retrieval:**
+
+```python
+# ✅ GOOD: NDAX balance with proper error handling
+from platform.ndax_live import NDAXLiveClient
+import logging
+
+def retrieve_ndax_balance(retry_count=3):
+    """
+    Retrieve NDAX account balances with retry logic
+    
+    Returns:
+        dict: Balances by currency or error information
+    """
+    client = NDAXLiveClient()
+    last_error = None
+    
+    for attempt in range(1, retry_count + 1):
+        try:
+            balances = client.get_balance()
+            logging.info(f"Retrieved NDAX balances: {len(balances)} currencies")
+            return {'success': True, 'balances': balances}
+        except requests.RequestException as e:
+            last_error = str(e)
+            logging.warning(f"Balance retrieval attempt {attempt}/{retry_count} failed: {e}")
+            if attempt < retry_count:
+                time.sleep(2 ** attempt)  # Exponential backoff
+    
+    return {
+        'success': False,
+        'error': f'Failed after {retry_count} attempts: {last_error}'
+    }
+```
+
+#### 3. Blocked/Stuck Funds Handling
+
+**Identifying Blocked Funds:**
+
+Funds can become blocked or stuck due to:
+- Pending transactions with insufficient gas fees
+- Network congestion
+- Failed smart contract interactions
+- Exchange withdrawal delays
+- Incorrect transaction parameters
+
+**Detection Strategy:**
+
+```javascript
+// ✅ GOOD: Comprehensive blocked funds detection
+export const detectBlockedFunds = async (address) => {
+  const issues = [];
+  
+  try {
+    // Check for pending transactions
+    const pendingTxs = await getPendingTransactions(address);
+    if (pendingTxs.length > 0) {
+      issues.push({
+        type: 'PENDING_TRANSACTIONS',
+        count: pendingTxs.length,
+        transactions: pendingTxs,
+        severity: 'warning'
+      });
+    }
+    
+    // Check for failed transactions in last 24 hours
+    const recentFailures = await getFailedTransactions(address, 24);
+    if (recentFailures.length > 0) {
+      issues.push({
+        type: 'FAILED_TRANSACTIONS',
+        count: recentFailures.length,
+        transactions: recentFailures,
+        severity: 'high'
+      });
+    }
+    
+    // Check for stuck transactions (pending > 1 hour)
+    const stuckTxs = pendingTxs.filter(tx => 
+      Date.now() - tx.timestamp > 3600000
+    );
+    if (stuckTxs.length > 0) {
+      issues.push({
+        type: 'STUCK_TRANSACTIONS',
+        count: stuckTxs.length,
+        transactions: stuckTxs,
+        severity: 'critical',
+        recommendation: 'Consider gas price increase or transaction replacement'
+      });
+    }
+    
+    return { success: true, issues, hasBlockedFunds: issues.length > 0 };
+  } catch (error) {
+    logger.error('Error detecting blocked funds:', error);
+    return { success: false, error: error.message };
+  }
+};
+```
+
+**Recovery Strategies:**
+
+```javascript
+// ✅ GOOD: Multiple recovery strategies for stuck transactions
+export const recoverBlockedFunds = async (txHash, strategy = 'auto') => {
+  try {
+    const tx = await blockchain.getTransactionReceipt(txHash);
+    
+    // If transaction is still pending
+    if (!tx || !tx.blockNumber) {
+      logger.info(`Transaction ${txHash} is pending, attempting recovery...`);
+      
+      switch (strategy) {
+        case 'speed_up':
+          // Increase gas price and resubmit
+          return await speedUpTransaction(txHash);
+          
+        case 'cancel':
+          // Send 0 ETH transaction to same nonce to cancel
+          return await cancelTransaction(txHash);
+          
+        case 'replace':
+          // Replace with new transaction with higher gas
+          return await replaceTransaction(txHash);
+          
+        case 'auto':
+          // Automatically choose best strategy based on conditions
+          const gasPrice = await blockchain.provider.request({
+            method: 'eth_gasPrice',
+            params: []
+          });
+          const currentGasPrice = parseInt(gasPrice, 16);
+          
+          // If network is congested (high gas), wait
+          if (currentGasPrice > 100e9) { // > 100 Gwei
+            logger.info('Network congested, waiting for gas prices to decrease');
+            return { 
+              success: false, 
+              action: 'wait',
+              message: 'Network congestion detected, retry later' 
+            };
+          }
+          
+          // Otherwise, speed up transaction
+          return await speedUpTransaction(txHash);
+          
+        default:
+          throw new Error(`Unknown recovery strategy: ${strategy}`);
+      }
+    }
+    
+    // Transaction is confirmed, check if successful
+    if (tx.status === '0x1') {
+      return { 
+        success: true, 
+        message: 'Transaction already confirmed successfully' 
+      };
+    } else {
+      return { 
+        success: false, 
+        message: 'Transaction failed on-chain',
+        recommendation: 'Review transaction parameters and try again'
+      };
+    }
+  } catch (error) {
+    logger.error('Error recovering blocked funds:', error);
+    return { 
+      success: false, 
+      error: error.message,
+      recommendation: 'Contact support if issue persists'
+    };
+  }
+};
+
+// Helper: Speed up transaction with higher gas price
+const speedUpTransaction = async (txHash) => {
+  const originalTx = await getTransactionDetails(txHash);
+  const newGasPrice = Math.floor(originalTx.gasPrice * 1.2); // 20% increase
+  
+  const newTx = {
+    ...originalTx,
+    gasPrice: newGasPrice,
+    nonce: originalTx.nonce // Same nonce to replace
+  };
+  
+  const newTxHash = await blockchain.sendTransaction(
+    newTx.to,
+    newTx.value,
+    newTx.data
+  );
+  
+  logger.info(`Sped up transaction: ${txHash} -> ${newTxHash}`);
+  return { success: true, oldTxHash: txHash, newTxHash };
+};
+```
+
+**NDAX Exchange Withdrawal Handling:**
+
+```python
+# ✅ GOOD: NDAX withdrawal with status monitoring
+def handle_ndax_withdrawal(amount, currency, address, timeout_minutes=30):
+    """
+    Handle NDAX withdrawal with status monitoring
+    
+    Args:
+        amount: Amount to withdraw
+        currency: Currency symbol (e.g., 'BTC', 'ETH')
+        address: Destination wallet address
+        timeout_minutes: Max time to wait for confirmation
+    
+    Returns:
+        dict: Withdrawal status and details
+    """
+    client = NDAXLiveClient()
+    
+    try:
+        # Initiate withdrawal
+        withdrawal = client.withdraw(amount, currency, address)
+        withdrawal_id = withdrawal.get('WithdrawalId')
+        
+        if not withdrawal_id:
+            return {
+                'success': False,
+                'error': 'Failed to initiate withdrawal',
+                'details': withdrawal
+            }
+        
+        # Monitor withdrawal status
+        start_time = time.time()
+        max_wait = timeout_minutes * 60
+        
+        while time.time() - start_time < max_wait:
+            status = client.get_withdrawal_status(withdrawal_id)
+            state = status.get('State', 'Unknown')
+            
+            if state == 'Completed':
+                return {
+                    'success': True,
+                    'withdrawal_id': withdrawal_id,
+                    'state': state,
+                    'tx_hash': status.get('TxHash')
+                }
+            elif state in ['Failed', 'Rejected', 'Cancelled']:
+                return {
+                    'success': False,
+                    'withdrawal_id': withdrawal_id,
+                    'state': state,
+                    'error': status.get('ErrorMessage', 'Withdrawal failed')
+                }
+            elif state == 'Pending':
+                logging.info(f"Withdrawal {withdrawal_id} pending, waiting...")
+                time.sleep(30)  # Check every 30 seconds
+            else:
+                logging.warning(f"Unknown withdrawal state: {state}")
+                time.sleep(30)
+        
+        # Timeout reached
+        return {
+            'success': False,
+            'withdrawal_id': withdrawal_id,
+            'error': f'Withdrawal timeout after {timeout_minutes} minutes',
+            'recommendation': 'Check NDAX account or contact support'
+        }
+        
+    except Exception as e:
+        logging.error(f"Withdrawal error: {e}")
+        return {
+            'success': False,
+            'error': str(e)
+        }
+```
+
+#### 4. Multi-Chain Wallet Scanning
+
+**Use the scan_wallets.py utility for multi-chain operations:**
+
+```python
+# Example: Scan multiple wallets across Bitcoin and TRON
+from scan_wallets import get_btc_info, get_tron_info
+
+def scan_all_wallets(wallet_addresses):
+    """
+    Scan multiple wallets across different blockchains
+    
+    Args:
+        wallet_addresses: Dict of {chain: [addresses]}
+    
+    Returns:
+        dict: Comprehensive wallet scan results
+    """
+    results = {
+        'bitcoin': [],
+        'tron': [],
+        'errors': []
+    }
+    
+    # Scan Bitcoin wallets
+    for btc_address in wallet_addresses.get('bitcoin', []):
+        try:
+            info = get_btc_info(btc_address)
+            if 'error' not in info:
+                results['bitcoin'].append(info)
+            else:
+                results['errors'].append({
+                    'chain': 'bitcoin',
+                    'address': btc_address,
+                    'error': info['error']
+                })
+        except Exception as e:
+            results['errors'].append({
+                'chain': 'bitcoin',
+                'address': btc_address,
+                'error': str(e)
+            })
+    
+    # Scan TRON wallets
+    for tron_address in wallet_addresses.get('tron', []):
+        try:
+            info = get_tron_info(tron_address)
+            if 'error' not in info:
+                results['tron'].append(info)
+            else:
+                results['errors'].append({
+                    'chain': 'tron',
+                    'address': tron_address,
+                    'error': info['error']
+                })
+        except Exception as e:
+            results['errors'].append({
+                'chain': 'tron',
+                'address': tron_address,
+                'error': str(e)
+            })
+    
+    return results
+```
+
+### Best Practices for Wallet Operations
+
+1. **Always validate addresses** before performing operations
+2. **Implement retry logic** with exponential backoff for network operations
+3. **Log all wallet operations** for audit trails
+4. **Never hardcode wallet addresses or private keys** - use environment variables
+5. **Use normalized addresses** (lowercase for Ethereum) for consistency
+6. **Monitor gas prices** before submitting transactions
+7. **Implement timeout mechanisms** for long-running operations
+8. **Provide clear error messages** with recovery recommendations
+9. **Test thoroughly** on testnets before using real funds
+10. **Implement rate limiting** to avoid API throttling
+
+### Security Considerations
+
+- **Never expose private keys** in logs, error messages, or client-side code
+- **Always use HTTPS** for API calls involving wallet data
+- **Encrypt sensitive data** using `src/shared/encryption.js` (AES-256)
+- **Implement IP whitelisting** for exchange API keys when possible
+- **Use read-only API keys** for balance checking operations
+- **Validate all user inputs** to prevent injection attacks
+- **Implement multi-factor authentication** for withdrawal operations
+- **Monitor for suspicious activity** (unusual transaction patterns, large withdrawals)
+- **Keep dependencies updated** to patch security vulnerabilities
+- **Use hardware wallets** for storing large amounts of cryptocurrency
+
+### Error Handling Patterns
+
+```javascript
+// ✅ GOOD: Comprehensive error handling with user-friendly messages
+export const handleWalletError = (error, operation) => {
+  logger.error(`Wallet operation failed: ${operation}`, error);
+  
+  // Categorize error and provide specific guidance
+  if (error.code === 4001) {
+    return {
+      success: false,
+      userMessage: 'Transaction rejected by user',
+      technicalMessage: error.message,
+      action: 'retry',
+      category: 'user_rejection'
+    };
+  } else if (error.code === -32603) {
+    return {
+      success: false,
+      userMessage: 'Network error occurred. Please check your connection and try again.',
+      technicalMessage: error.message,
+      action: 'retry',
+      category: 'network_error'
+    };
+  } else if (error.message.includes('insufficient funds')) {
+    return {
+      success: false,
+      userMessage: 'Insufficient funds to complete transaction',
+      technicalMessage: error.message,
+      action: 'add_funds',
+      category: 'insufficient_balance'
+    };
+  } else if (error.message.includes('gas')) {
+    return {
+      success: false,
+      userMessage: 'Gas fee estimation failed. Network may be congested.',
+      technicalMessage: error.message,
+      action: 'wait_and_retry',
+      category: 'gas_error'
+    };
+  } else {
+    return {
+      success: false,
+      userMessage: 'An unexpected error occurred. Please try again or contact support.',
+      technicalMessage: error.message,
+      action: 'contact_support',
+      category: 'unknown_error'
+    };
+  }
+};
+```
+
+### Testing Wallet Functionality
+
+Always test wallet operations thoroughly:
+
+```javascript
+// Example test for wallet balance retrieval
+describe('Wallet Balance Retrieval', () => {
+  it('should retrieve balance for valid address', async () => {
+    const testAddress = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e';
+    const result = await getWalletBalance(testAddress);
+    
+    expect(result.success).toBe(true);
+    expect(result.balance).toBeGreaterThanOrEqual(0);
+    expect(result.address).toBe(testAddress.toLowerCase());
+  });
+  
+  it('should handle invalid address gracefully', async () => {
+    const invalidAddress = 'invalid_address';
+    await expect(getWalletBalance(invalidAddress)).rejects.toThrow('Invalid wallet address');
+  });
+  
+  it('should retry on network failure', async () => {
+    // Mock network failure then success
+    const result = await getWalletBalance(testAddress, 3);
+    expect(result.success).toBe(true);
+  });
+});
+```
+
 ## Additional Resources
 
 - See `docs/` directory for detailed setup guides
 - `docs/API.md` - Complete API documentation
 - `docs/QUICK_START.md` - Quick start guide
 - `docs/API_SETUP_GUIDE.md` - API key configuration
+- `NDAX_TRADING_SETUP.md` - NDAX wallet integration guide
+- `scan_wallets.py` - Multi-chain wallet scanning utility
 
 ## Version Information
 

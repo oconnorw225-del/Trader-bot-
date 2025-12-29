@@ -10,6 +10,15 @@ applyTo:
 > This file is kept for backward compatibility but may be removed in the future. Please refer to the new location.
 >
 > **Update (2025-11-24):** The `applyTo` directive has been updated to include all file types (`**/*`) to ensure Copilot can review bash scripts, markdown files, YAML configurations, and all other project files.
+>
+> **Update (2025-12-29):** Added comprehensive **Wallet Management and Fund Retrieval** section covering:
+> - Wallet connection and validation procedures
+> - Balance retrieval with retry logic
+> - Blocked/stuck funds detection and recovery strategies
+> - Multi-chain wallet scanning (Bitcoin, TRON, Ethereum)
+> - NDAX exchange withdrawal handling
+> - Security best practices for wallet operations
+> - Error handling patterns and testing guidelines
 
 # GitHub Copilot Instructions for NDAX Quantum Engine
 
