@@ -135,6 +135,23 @@ create_pr_for_branch() {
     fi
 }
 
+# Function to check if base branch exists
+check_base_branch() {
+    if ! git rev-parse --verify "origin/$BASE_BRANCH" > /dev/null 2>&1; then
+        echo -e "${RED}ERROR: Base branch '$BASE_BRANCH' does not exist on remote${NC}"
+        echo ""
+        echo "Please create the base branch first:"
+        echo "  git checkout -b $BASE_BRANCH"
+        echo "  git push origin $BASE_BRANCH"
+        echo ""
+        echo "Or run the initialization script:"
+        echo "  bash scripts/init-pr-creation.sh"
+        return 1
+    fi
+    echo -e "${GREEN}✓ Base branch '$BASE_BRANCH' exists${NC}"
+    return 0
+}
+
 # Main execution
 main() {
     echo "========================================"
@@ -151,6 +168,12 @@ main() {
     # Fetch latest refs
     echo "Fetching latest refs..."
     git fetch origin
+    echo ""
+    
+    # Check if base branch exists
+    if ! check_base_branch; then
+        exit 1
+    fi
     echo ""
     
     # Track statistics
