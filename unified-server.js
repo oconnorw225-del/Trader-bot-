@@ -66,6 +66,12 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(morgan('combined'));
 
+// Middleware to count HTTP requests (must be early in the middleware chain)
+app.use((req, res, next) => {
+  httpRequestCount++;
+  next();
+});
+
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -299,12 +305,6 @@ app.get('/metrics', (req, res) => {
 let wsConnectionCount = 0;
 let httpRequestCount = 0;
 
-// Middleware to count HTTP requests
-app.use((req, res, next) => {
-  httpRequestCount++;
-  next();
-});
-
 wss.on('connection', (ws, req) => {
   wsConnectionCount++;
   const clientId = `client_${wsConnectionCount}_${Date.now()}`;
@@ -411,8 +411,14 @@ if (TESTNET) {
   }, 5000); // Every 5 seconds
 }
 
-// Catch-all route for SPA
-app.get('*', (req, res) => {
+// Catch-all route for SPA (Express 5.x compatible)
+// Match all non-API routes and serve the React app
+app.use((req, res, next) => {
+  // Skip API routes
+  if (req.path.startsWith('/api/') || req.path === '/metrics') {
+    return next();
+  }
+  // Serve index.html for all other routes (SPA)
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
