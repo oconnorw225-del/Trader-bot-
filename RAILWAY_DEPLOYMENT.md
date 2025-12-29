@@ -63,19 +63,19 @@ Check these endpoints after deployment:
 
 ```bash
 # Replace YOUR_APP_URL with your actual Railway deployment URL
-# Example: https://ndax-quantum-engine-production.up.railway.app
+# Example: https://fearless-radiance.up.railway.app
 
 # Health check (should return 200 OK)
-curl https://YOUR_APP_URL/api/health
+curl https://fearless-radiance.up.railway.app/api/health
 
 # Main dashboard (should return HTML)
-curl https://YOUR_APP_URL/
+curl https://fearless-radiance.up.railway.app/
 
 # Stats endpoint
-curl https://YOUR_APP_URL/api/stats
+curl https://fearless-radiance.up.railway.app/api/stats
 
 # Features endpoint
-curl https://YOUR_APP_URL/api/features
+curl https://fearless-radiance.up.railway.app/api/features
 ```
 
 Expected health check response:
@@ -176,7 +176,7 @@ npm run build
 
 ```bash
 # Check health status
-curl https://YOUR_APP_URL/api/health
+curl https://fearless-radiance.up.railway.app/api/health
 
 # Response indicates:
 # - status: Server health status

@@ -199,8 +199,8 @@ In Railway dashboard:
 ### 5. Verify Deployment
 
 Check these endpoints:
-- Health: `https://your-app.railway.app/api/health`
-- Frontend: `https://your-app.railway.app/`
+- Health: `https://fearless-radiance.up.railway.app/api/health`
+- Frontend: `https://fearless-radiance.up.railway.app/`
 
 ## Docker Deployment
 

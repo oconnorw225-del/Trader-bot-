@@ -105,7 +105,7 @@ CORS_ORIGIN=*
 **Step 4: Configure Stripe Webhook**
 - Dashboard URL: Get from Railway
 - Stripe Webhooks → Add endpoint
-- URL: `https://your-app.railway.app/stripe-webhook`
+- URL: `https://fearless-radiance.up.railway.app/stripe-webhook`
 - Copy webhook secret to environment
 
 **Step 5: Deploy**
@@ -136,7 +136,7 @@ CORS_ORIGIN=*
 
 **Available at:**
 ```
-https://your-app-name.railway.app
+https://fearless-radiance.up.railway.app
 ```
 
 ### 🎉 Complete System Features:

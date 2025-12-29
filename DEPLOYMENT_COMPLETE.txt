@@ -145,7 +145,7 @@ STEP 4: Configure Stripe Webhook
 In Stripe Dashboard:
 → Webhooks
 → Add endpoint
-→ URL: https://your-app.railway.app/stripe-webhook
+→ URL: https://fearless-radiance.up.railway.app/stripe-webhook
 → Events: checkout.session.completed, payment_intent.succeeded
 → Copy webhook secret to Railway environment
 
@@ -154,8 +154,8 @@ Railway auto-deploys on GitHub push
 Monitor in Railway Dashboard
 
 STEP 6: Verify
-curl https://your-app.railway.app/health
-curl https://your-app.railway.app/api/stats
+curl https://fearless-radiance.up.railway.app/health
+curl https://fearless-radiance.up.railway.app/api/stats
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -169,7 +169,7 @@ After Railway Deployment You'll Have:
    └─ Environment: production
 
 ✅ Dashboard Available
-   └─ URL: https://your-app.railway.app
+   └─ URL: https://fearless-radiance.up.railway.app
    └─ Status: Beautiful UI loaded
    └─ Modules: 8 components displayed
 
@@ -274,11 +274,11 @@ Your NDAX Complete AI Bot is now PRODUCTION READY with:
 
 📍 LIVE ENDPOINTS (After Deployment):
 
-Homepage:      https://your-app.railway.app/
-Health Check:  https://your-app.railway.app/health
-Dashboard:     https://your-app.railway.app/api/dashboard
-Stats:         https://your-app.railway.app/api/stats
-Webhook:       https://your-app.railway.app/stripe-webhook
+Homepage:      https://fearless-radiance.up.railway.app/
+Health Check:  https://fearless-radiance.up.railway.app/health
+Dashboard:     https://fearless-radiance.up.railway.app/api/dashboard
+Stats:         https://fearless-radiance.up.railway.app/api/stats
+Webhook:       https://fearless-radiance.up.railway.app/stripe-webhook
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

@@ -84,7 +84,7 @@ railway status
 
 #### Test health endpoint
 ```bash
-curl https://your-app.railway.app/api/health
+curl https://fearless-radiance.up.railway.app/api/health
 ```
 
 ## Monitoring
@@ -98,8 +98,8 @@ railway logs --follow
 Visit Railway dashboard → Metrics
 
 ### Health Checks
-- Node.js: `https://your-app.railway.app/api/health`
-- Python: `https://your-app.railway.app/python/api/health`
+- Node.js: `https://fearless-radiance.up.railway.app/api/health`
+- Python: `https://fearless-radiance.up.railway.app/python/api/health`
 
 ## Configuration Files
 

@@ -143,7 +143,7 @@ app.use(cors());  // Allows all origins
 4. Verify port 3000 is bound to 0.0.0.0
 
 ### API Not Responding
-1. Check health endpoint: `curl https://your-app.railway.app/api/health`
+1. Check health endpoint: `curl https://fearless-radiance.up.railway.app/api/health`
 2. Verify backend started: Look for "Backend running on port 3000" in logs
 3. Check rate limiting (100 req/15min per IP)
 

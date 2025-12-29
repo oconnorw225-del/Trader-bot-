@@ -82,7 +82,7 @@ CORS_ORIGIN=*
 
 In Stripe Dashboard:
 1. Webhooks → Add endpoint
-2. URL: `https://your-app.railway.app/stripe-webhook`
+2. URL: `https://fearless-radiance.up.railway.app/stripe-webhook`
 3. Select: `checkout.session.completed`, `payment_intent.succeeded`
 4. Copy webhook secret to Railway
 
@@ -123,11 +123,11 @@ git push origin main
 ```
 
 **API Endpoints Live:**
-- `GET https://your-app.railway.app/` → Dashboard
-- `GET https://your-app.railway.app/health` → Health
-- `GET https://your-app.railway.app/api/stats` → Stats
-- `POST https://your-app.railway.app/stripe-webhook` → Webhooks
-- `POST https://your-app.railway.app/api/task` → Create task
+- `GET https://fearless-radiance.up.railway.app/` → Dashboard
+- `GET https://fearless-radiance.up.railway.app/health` → Health
+- `GET https://fearless-radiance.up.railway.app/api/stats` → Stats
+- `POST https://fearless-radiance.up.railway.app/stripe-webhook` → Webhooks
+- `POST https://fearless-radiance.up.railway.app/api/task` → Create task
 
 ---
 
@@ -185,10 +185,10 @@ railway restart
 git push origin main
 
 # Check status
-curl https://your-app.railway.app/health
+curl https://fearless-radiance.up.railway.app/health
 
 # Get dashboard
-curl https://your-app.railway.app/api/dashboard
+curl https://fearless-radiance.up.railway.app/api/dashboard
 ```
 
 ---
@@ -200,7 +200,7 @@ curl https://your-app.railway.app/api/dashboard
 1. **Check logs**: `railway logs`
 2. **Verify variables**: `railway variables`
 3. **Test locally**: `npm start`
-4. **Check endpoints**: `curl https://your-app.railway.app/health`
+4. **Check endpoints**: `curl https://fearless-radiance.up.railway.app/health`
 
 **Resources:**
 - Railway: https://railway.app
@@ -230,7 +230,7 @@ Your complete AI bot system is:
 2. **Push**: `git push origin main`
 3. **Deploy**: Go to Railway.app and connect
 4. **Configure**: Add environment variables
-5. **Verify**: Check https://your-app.railway.app
+5. **Verify**: Check https://fearless-radiance.up.railway.app
 6. **Monitor**: Watch logs in Railway dashboard
 
 ---
