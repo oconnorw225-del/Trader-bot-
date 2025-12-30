@@ -83,10 +83,10 @@ The repository now includes a comprehensive autonomous workflow system that:
 
 ### 🎯 Core Modules (12 Toggleable Features)
 
-- **⚛️ Quantum Trading Engine** - Advanced quantum algorithms for trading strategies
+- **⚛️ Quantum Trading Engine** - Advanced quantum algorithms for trading strategies with risk-aware recommendations
 - **🤖 AI Freelance Automation** - Multi-platform job search and automation (Upwork, Fiverr, Freelancer, etc.)
 - **🧙 Wizard Pro** - Natural language conversational setup with NLP
-- **⚠️ Risk Management** - Position limits, daily loss limits, and real-time risk assessment
+- **⚠️ Risk Management** - Integrated risk validation, position limits, stop-loss automation, daily loss limits, and real-time risk assessment ([Documentation](docs/RISK_MANAGEMENT.md))
 - **📊 Advanced Analytics** - Comprehensive reporting and data visualization
 - **✅ Task Manager** - Full CRUD task management with localStorage
 - **🔬 Test Lab** - Strategy testing and validation environment
