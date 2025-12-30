@@ -62,12 +62,6 @@ class TradingEngine {
     this.orders.push(order);
     this.updatePosition(symbol, side, quantity, price, options.stopLoss);
 
-    // Update risk manager position tracking
-    const position = this.positions.get(symbol);
-    if (position) {
-      this.riskManager.updatePosition(symbol, position.quantity * position.avgPrice);
-    }
-
     // Trigger webhook event
     webhookManager.triggerEvent('order.placed', {
       orderId: order.id,
@@ -187,8 +181,12 @@ class TradingEngine {
 
     if (position.quantity > 0) {
       this.positions.set(symbol, position);
+      // Update risk manager with current position value
+      this.riskManager.updatePosition(symbol, position.quantity * position.avgPrice);
     } else {
       this.positions.delete(symbol);
+      // Clear position in risk manager
+      this.riskManager.updatePosition(symbol, 0);
     }
   }
 

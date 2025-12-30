@@ -2,7 +2,7 @@
  * Risk management module for trading risk controls
  */
 
-import webhookManager from '../shared/webhookManager.js';
+import webhookManager from './webhookManager.js';
 
 class RiskManager {
   constructor() {
