@@ -224,7 +224,7 @@ describe('Performance Optimization Tests', () => {
     });
 
     test('should limit RiskManager risk events array', async () => {
-      const riskManager = (await import('../../src/freelance/riskManager.js')).default;
+      const riskManager = (await import('../../src/shared/riskManager.js')).default;
       
       // Clear existing risk events
       riskManager.riskEvents = [];
