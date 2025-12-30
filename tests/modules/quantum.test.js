@@ -42,6 +42,24 @@ describe('Quantum Strategies', () => {
       
       expect(result.optimalPrice).toBeLessThan(150);
     });
+
+    test('should include risk assessment when requested', () => {
+      const marketStates = [
+        { price: 100 },
+        { price: 110 },
+        { price: 105 }
+      ];
+      
+      const result = quantumSuperposition(marketStates, {}, {
+        checkRisk: true,
+        symbol: 'ETH/USD',
+        size: 1
+      });
+      
+      expect(result).toHaveProperty('riskAssessment');
+      expect(result.riskAssessment).toHaveProperty('approved');
+      expect(result).toHaveProperty('shouldExecute');
+    });
   });
 
   describe('quantumEntanglement', () => {
@@ -102,6 +120,24 @@ describe('Quantum Strategies', () => {
 
     test('should throw error for empty signals', () => {
       expect(() => quantumInterference([])).toThrow();
+    });
+
+    test('should include risk assessment when requested', () => {
+      const signals = [
+        { type: 'BUY' },
+        { type: 'BUY' }
+      ];
+      
+      const result = quantumInterference(signals, {
+        checkRisk: true,
+        symbol: 'BTC/USD',
+        size: 0.1,
+        price: 50000
+      });
+      
+      expect(result).toHaveProperty('riskAssessment');
+      expect(result.riskAssessment).toHaveProperty('approved');
+      expect(result).toHaveProperty('shouldExecute');
     });
   });
 });
