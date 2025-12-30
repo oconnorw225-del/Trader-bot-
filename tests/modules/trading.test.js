@@ -14,7 +14,7 @@ describe('Trading Engine', () => {
   });
 
   test('should place market order', () => {
-    const order = engine.placeMarketOrder('BTC/USD', 'BUY', 0.1, 1000);
+    const order = engine.placeMarketOrder('BTC/USD', 'BUY', 0.1, 1000, { skipRiskCheck: true });
     
     expect(order).toHaveProperty('id');
     expect(order.symbol).toBe('BTC/USD');
@@ -23,11 +23,11 @@ describe('Trading Engine', () => {
   });
 
   test('should throw error for insufficient balance', () => {
-    expect(() => engine.placeMarketOrder('BTC/USD', 'BUY', 1, 50000)).toThrow();
+    expect(() => engine.placeMarketOrder('BTC/USD', 'BUY', 1, 50000, { skipRiskCheck: true })).toThrow();
   });
 
   test('should update position after order', () => {
-    engine.placeMarketOrder('BTC/USD', 'BUY', 1, 1000);
+    engine.placeMarketOrder('BTC/USD', 'BUY', 1, 1000, { skipRiskCheck: true });
     const position = engine.getPosition('BTC/USD');
     
     expect(position).toBeTruthy();
@@ -39,6 +39,46 @@ describe('Trading Engine', () => {
     const cancelled = engine.cancelOrder(order.id);
     
     expect(cancelled).toBe(true);
+  });
+
+  test('should enforce risk management', () => {
+    // Try to place oversized order without skipping risk check (exceeds max position size of 10000)
+    expect(() => engine.placeMarketOrder('BTC/USD', 'BUY', 1.1, 9500)).toThrow(/risk manager/);
+  });
+
+  test('should calculate risk-adjusted position size', () => {
+    const sizing = engine.calculateRiskAdjustedSize('BTC/USD', 1000, 950, 2);
+    
+    expect(sizing).toHaveProperty('optimalQuantity');
+    expect(sizing).toHaveProperty('potentialRisk');
+    expect(sizing.optimalQuantity).toBeGreaterThan(0);
+  });
+
+  test('should execute stop-loss', () => {
+    // Place a buy order with stop-loss
+    engine.placeMarketOrder('BTC/USD', 'BUY', 1, 1000, { 
+      skipRiskCheck: true, 
+      stopLoss: 950 
+    });
+    
+    // Execute stop-loss
+    const result = engine.executeStopLoss('BTC/USD', 940);
+    
+    expect(result).toHaveProperty('reason', 'stop-loss');
+    expect(result).toHaveProperty('pnl');
+    expect(result.pnl).toBeLessThanOrEqual(0);
+  });
+
+  test('should check stop-loss conditions', () => {
+    engine.placeMarketOrder('BTC/USD', 'BUY', 1, 1000, { 
+      skipRiskCheck: true, 
+      stopLoss: 950 
+    });
+    
+    const triggered = engine.checkStopLoss({ 'BTC/USD': 940 });
+    
+    expect(triggered).toHaveLength(1);
+    expect(triggered[0].symbol).toBe('BTC/USD');
   });
 });
 

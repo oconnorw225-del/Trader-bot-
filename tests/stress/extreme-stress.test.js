@@ -8,7 +8,7 @@ process.env.ENCRYPTION_KEY = 'test-key-32-chars-long-enough!!';
 import TradingEngine from '../../src/quantum/tradingLogic.js';
 import { calculateSMA } from '../../src/quantum/quantumMath.js';
 import { quantumSuperposition } from '../../src/quantum/quantumStrategies.js';
-import riskManager from '../../src/freelance/riskManager.js';
+import riskManager from '../../src/shared/riskManager.js';
 import { encrypt, decrypt } from '../../src/shared/encryption.js';
 import recovery from '../../src/shared/crashRecovery.js';
 

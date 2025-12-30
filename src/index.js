@@ -25,7 +25,7 @@ export { default as feedbackLearning } from './freelance/ai/feedbackLearning.js'
 
 // Freelance Management
 export * as jobLogic from './freelance/jobLogic.js';
-export { default as riskManager } from './freelance/riskManager.js';
+export { default as riskManager } from './shared/riskManager.js';
 export { default as paymentManager } from './freelance/paymentManager.js';
 
 // Shared Utilities

@@ -2,7 +2,7 @@
  * Tests for risk management module
  */
 
-import riskManager from '../../src/freelance/riskManager.js';
+import riskManager from '../../src/shared/riskManager.js';
 
 describe('Risk Manager', () => {
   beforeEach(() => {

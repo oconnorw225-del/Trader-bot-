@@ -3,12 +3,14 @@
  */
 
 import webhookManager from '../shared/webhookManager.js';
+import riskManager from '../shared/riskManager.js';
 
 class TradingEngine {
   constructor() {
     this.orders = [];
     this.positions = new Map();
     this.balance = 10000; // Default balance
+    this.riskManager = riskManager;
   }
 
   /**
@@ -17,14 +19,29 @@ class TradingEngine {
    * @param {string} side - 'BUY' or 'SELL'
    * @param {number} quantity - Order quantity
    * @param {number} price - Current market price
+   * @param {object} options - Optional parameters (skipRiskCheck, stopLoss, volatility)
    * @returns {object} Order result
    */
-  placeMarketOrder(symbol, side, quantity, price) {
+  placeMarketOrder(symbol, side, quantity, price, options = {}) {
     if (!symbol || !side || quantity <= 0 || price <= 0) {
       throw new Error('Invalid order parameters');
     }
 
     const orderValue = quantity * price;
+
+    // Perform risk check unless explicitly skipped (for testing)
+    if (!options.skipRiskCheck) {
+      const riskAssessment = this.riskManager.evaluateTradeRisk({
+        symbol,
+        size: quantity,
+        price,
+        volatility: options.volatility || 0
+      });
+
+      if (!riskAssessment.approved) {
+        throw new Error(`Trade rejected by risk manager: ${riskAssessment.risks.join(', ')}`);
+      }
+    }
     
     if (side === 'BUY' && orderValue > this.balance) {
       throw new Error('Insufficient balance');
@@ -38,11 +55,18 @@ class TradingEngine {
       price,
       type: 'MARKET',
       status: 'FILLED',
+      stopLoss: options.stopLoss,
       timestamp: new Date().toISOString()
     };
 
     this.orders.push(order);
-    this.updatePosition(symbol, side, quantity, price);
+    this.updatePosition(symbol, side, quantity, price, options.stopLoss);
+
+    // Update risk manager position tracking
+    const position = this.positions.get(symbol);
+    if (position) {
+      this.riskManager.updatePosition(symbol, position.quantity * position.avgPrice);
+    }
 
     // Trigger webhook event
     webhookManager.triggerEvent('order.placed', {
@@ -114,19 +138,24 @@ class TradingEngine {
    * @param {string} side - 'BUY' or 'SELL'
    * @param {number} quantity - Order quantity
    * @param {number} price - Execution price
+   * @param {number} stopLoss - Optional stop-loss price
    */
-  updatePosition(symbol, side, quantity, price) {
+  updatePosition(symbol, side, quantity, price, stopLoss = null) {
     const position = this.positions.get(symbol) || {
       symbol,
       quantity: 0,
       avgPrice: 0,
-      unrealizedPnL: 0
+      unrealizedPnL: 0,
+      stopLoss: null,
+      side: null
     };
 
     if (side === 'BUY') {
       const totalCost = (position.quantity * position.avgPrice) + (quantity * price);
       position.quantity += quantity;
       position.avgPrice = totalCost / position.quantity;
+      position.side = 'LONG';
+      if (stopLoss) position.stopLoss = stopLoss;
       this.balance -= quantity * price;
     } else if (side === 'SELL') {
       if (position.quantity < quantity) {
@@ -135,6 +164,12 @@ class TradingEngine {
       position.quantity -= quantity;
       this.balance += quantity * price;
       
+      // Calculate realized PnL
+      const realizedPnL = (price - position.avgPrice) * quantity;
+      if (realizedPnL < 0) {
+        this.riskManager.recordLoss(Math.abs(realizedPnL));
+      }
+      
       // Trigger position closed webhook if position is fully closed
       if (position.quantity === 0) {
         webhookManager.triggerEvent('position.closed', {
@@ -142,7 +177,7 @@ class TradingEngine {
           quantity,
           avgPrice: position.avgPrice,
           exitPrice: price,
-          pnl: (price - position.avgPrice) * quantity,
+          pnl: realizedPnL,
           timestamp: new Date().toISOString()
         }).catch(err => {
           console.error('Webhook delivery failed:', err);
@@ -201,11 +236,105 @@ class TradingEngine {
   }
 
   /**
+   * Check stop-loss conditions for all positions
+   * @param {object} currentPrices - Map of symbol to current price
+   * @returns {array} Stop-loss triggered positions
+   */
+  checkStopLoss(currentPrices = {}) {
+    const triggeredPositions = [];
+    
+    for (const [symbol, position] of this.positions) {
+      if (!position.stopLoss || !currentPrices[symbol]) {
+        continue;
+      }
+      
+      const shouldTrigger = this.riskManager.checkStopLoss(position, currentPrices[symbol]);
+      
+      if (shouldTrigger) {
+        triggeredPositions.push({
+          symbol,
+          position,
+          currentPrice: currentPrices[symbol],
+          stopLoss: position.stopLoss
+        });
+      }
+    }
+    
+    return triggeredPositions;
+  }
+
+  /**
+   * Execute stop-loss for a position
+   * @param {string} symbol - Trading symbol
+   * @param {number} currentPrice - Current market price
+   * @returns {object} Closed position details
+   */
+  executeStopLoss(symbol, currentPrice) {
+    const position = this.positions.get(symbol);
+    if (!position) {
+      throw new Error('Position not found');
+    }
+
+    // Place sell order at current price with risk check skipped (emergency exit)
+    const order = this.placeMarketOrder(
+      symbol, 
+      'SELL', 
+      position.quantity, 
+      currentPrice,
+      { skipRiskCheck: true }
+    );
+
+    return {
+      order,
+      reason: 'stop-loss',
+      stopLossPrice: position.stopLoss,
+      actualPrice: currentPrice,
+      pnl: (currentPrice - position.avgPrice) * position.quantity
+    };
+  }
+
+  /**
    * Get account balance
    * @returns {number} Current balance
    */
   getBalance() {
     return this.balance;
+  }
+
+  /**
+   * Calculate risk-adjusted position size
+   * @param {string} symbol - Trading symbol
+   * @param {number} currentPrice - Current market price
+   * @param {number} stopLossPrice - Stop-loss price
+   * @param {number} riskPercentage - Risk percentage of balance (default 2%)
+   * @returns {object} Position sizing recommendation
+   */
+  calculateRiskAdjustedSize(symbol, currentPrice, stopLossPrice, riskPercentage = 2) {
+    if (!symbol || currentPrice <= 0 || stopLossPrice <= 0) {
+      throw new Error('Invalid parameters for position sizing');
+    }
+
+    const stopLossDistance = Math.abs(currentPrice - stopLossPrice);
+    const optimalSize = this.riskManager.calculatePositionSize(
+      this.balance,
+      riskPercentage,
+      stopLossDistance
+    );
+
+    const optimalQuantity = optimalSize / currentPrice;
+    const maxAffordableQuantity = this.balance / currentPrice;
+
+    return {
+      symbol,
+      currentPrice,
+      stopLossPrice,
+      riskPercentage,
+      optimalPositionSize: optimalSize,
+      optimalQuantity: Math.min(optimalQuantity, maxAffordableQuantity),
+      maxAffordableQuantity,
+      stopLossDistance,
+      potentialRisk: optimalQuantity * stopLossDistance
+    };
   }
 
   /**
@@ -229,6 +358,7 @@ class TradingEngine {
     this.orders = [];
     this.positions.clear();
     this.balance = 10000;
+    this.riskManager.resetDailyMetrics();
   }
 }
 
