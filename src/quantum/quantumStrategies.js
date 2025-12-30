@@ -137,11 +137,16 @@ export function quantumInterference(signals, riskParams = {}) {
   // Optional risk assessment
   let riskAssessment = null;
   if (riskParams.checkRisk && riskParams.symbol && riskParams.size && riskParams.price) {
+    // Calculate uncertainty as inverse of signal consensus strength
+    // High consensus (strength near 1) = low uncertainty/volatility
+    // Low consensus (strength near 0.33) = high uncertainty/volatility
+    const signalUncertainty = 1 - strength;
+    
     riskAssessment = riskManager.evaluateTradeRisk({
       symbol: riskParams.symbol,
       size: riskParams.size,
       price: riskParams.price,
-      volatility: 1 - strength // Lower strength = higher volatility
+      volatility: signalUncertainty
     });
   }
 
