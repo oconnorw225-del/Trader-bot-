@@ -52,5 +52,5 @@ jobs:
         run: |
           echo "Waiting for deployment to complete..."
           sleep 60
-          curl -f https://www.aiwebe.online/api/health || exit 1
+          curl -f https://fearless-radiance.up.railway.app/api/health || exit 1
           echo "✅ Deployment successful!"
