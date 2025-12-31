@@ -1,10 +1,10 @@
 [phases.setup]
-nixPkgs = ["nodejs-18_x", "python310", "postgresql"]
+nixPkgs = ["nodejs-18_x", "python310", "pip"]
 
 [phases.install]
 cmds = [
-  "npm install",
-  "pip install -r requirements.txt"
+  "npm ci --omit=dev --ignore-scripts || npm install",
+  "pip install --no-cache-dir -r requirements.txt"
 ]
 
 [phases.build]
