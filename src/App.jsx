@@ -8,6 +8,7 @@ import Settings from './components/Settings';
 import TodoApp from './components/TodoApp';
 import TestLab from './components/TestLab';
 import QuantumEngineWizard from './components/QuantumEngineWizard';
+import api from './services/api.js';
 import './styles/index.css';
 
 export default function App() {
@@ -30,12 +31,9 @@ export default function App() {
 
   const checkBackendHealth = async () => {
     try {
-      const response = await fetch(`${config.apiUrl}/api/health`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      });
+      const health = await api.checkHealth();
       
-      if (response.ok) {
+      if (health && health.status === 'ok') {
         setBackendStatus({
           available: true,
           lastCheck: new Date().toISOString()
@@ -47,6 +45,7 @@ export default function App() {
         });
       }
     } catch (error) {
+      console.error('Backend health check failed:', error);
       setBackendStatus({
         available: false,
         lastCheck: new Date().toISOString()
