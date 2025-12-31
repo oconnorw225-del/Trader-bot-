@@ -85,7 +85,7 @@ NDAX_ACCOUNT_ID=your-account-id
 - PORT assigned dynamically by Railway
 
 ### `nixpacks.toml` - Build process
-- **Setup:** Node.js 18.x, Python 3.10, pip
+- **Setup:** Node.js 18.x, Python 3.10 (pip included)
 - **Install:** npm dependencies + Python packages
 - **Build:** Vite production build
 - **Start:** npm run start:production

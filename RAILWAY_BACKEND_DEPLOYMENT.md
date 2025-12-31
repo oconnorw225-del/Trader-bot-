@@ -181,19 +181,19 @@ fi
 ### Phase 1: Setup (nixpacks.toml)
 ```toml
 [phases.setup]
-nixPkgs = ["nodejs-18_x", "python310", "pip"]
+nixPkgs = ["nodejs-18_x", "python310"]
 ```
-Installs Node.js 18.x, Python 3.10, and pip.
+Installs Node.js 18.x and Python 3.10 (pip is included with Python).
 
 ### Phase 2: Install Dependencies
 ```toml
 [phases.install]
 cmds = [
-  "npm ci --omit=dev --ignore-scripts || npm install",
+  "npm ci",
   "pip install --no-cache-dir -r requirements.txt"
 ]
 ```
-- Installs Node.js dependencies (production only)
+- Installs Node.js dependencies (all dependencies including devDependencies for build)
 - Installs Python dependencies (Flask, etc.)
 
 ### Phase 3: Build Frontend
