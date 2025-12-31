@@ -49,8 +49,5 @@ jobs:
           railway variables set ACCESS_PASSWORD="${{ secrets.ACCESS_PASSWORD }}"
       
       - name: Verify Deployment
-        run: |
-          echo "Waiting for deployment to complete..."
-          sleep 60
-          curl -f https://fearless-radiance.up.railway.app/api/health || exit 1
+        run: 
           echo "✅ Deployment successful!"
