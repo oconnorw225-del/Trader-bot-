@@ -7,7 +7,7 @@ jobs:
   consolidate:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout the-basics repository
+      - name: Checkout Trader-bot- repository
         uses: actions/checkout@v4
 
       - name: Clone source repositories
