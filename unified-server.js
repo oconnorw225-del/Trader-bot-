@@ -124,6 +124,16 @@ app.get('/api/status', async (req, res) => {
   }
 });
 
+// Stats endpoint
+app.get('/api/stats', (req, res) => {
+  res.json({
+    totalTrades: 0,
+    totalProfit: 0,
+    activeJobs: 0,
+    successRate: 0
+  });
+});
+
 // Exchange endpoints
 app.get('/api/exchanges', (req, res) => {
   res.json({
@@ -273,6 +283,24 @@ app.get('/api/market/:symbol', async (req, res) => {
       message: error.message,
     });
   }
+});
+
+// Feature toggle endpoints
+app.get('/api/features', (req, res) => {
+  res.json({
+    aiBot: true,
+    wizardPro: true,
+    stressTest: true,
+    strategyManagement: true,
+    todoList: true,
+    quantumEngine: true,
+    freelanceAutomation: true,
+    testLab: true,
+    advancedAnalytics: true,
+    riskManagement: true,
+    autoRecovery: true,
+    complianceChecks: true
+  });
 });
 
 // Metrics endpoint for Prometheus
