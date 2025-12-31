@@ -11,5 +11,4 @@ restartPolicyMaxRetries = 10
 
 [env]
 NODE_ENV = "production"
-PORT = "3000"
-PYTHON_BACKEND_PORT = "8000"
+# Railway assigns PORT dynamically - do not hardcode it here
