@@ -241,21 +241,33 @@ class MarketDataManager:
     # Real data methods (to be implemented with actual API)
     
     def _get_real_ticker(self, symbol: str) -> Dict[str, Any]:
-        """Get real ticker from NDAX API"""
-        # TODO: Implement NDAX API integration
-        logger.warning("Real NDAX API not implemented, using demo mode")
+        """
+        Get real ticker from NDAX API
+        
+        NOTE: This is intentionally a stub for paper trading mode.
+        For live NDAX API integration, see platform/ndax_live.py
+        """
+        logger.warning("Real NDAX API not implemented, using paper trading demo mode")
         return self._get_demo_ticker(symbol)
     
     def _get_real_orderbook(self, symbol: str, depth: int) -> Dict[str, List[List[float]]]:
-        """Get real order book from NDAX API"""
-        # TODO: Implement NDAX API integration
-        logger.warning("Real NDAX API not implemented, using demo mode")
+        """
+        Get real order book from NDAX API
+        
+        NOTE: This is intentionally a stub for paper trading mode.
+        For live NDAX API integration, see platform/ndax_live.py
+        """
+        logger.warning("Real NDAX API not implemented, using paper trading demo mode")
         return self._get_demo_orderbook(symbol, depth)
     
     def _get_real_trades(self, symbol: str, limit: int) -> List[Dict[str, Any]]:
-        """Get real trades from NDAX API"""
-        # TODO: Implement NDAX API integration
-        logger.warning("Real NDAX API not implemented, using demo mode")
+        """
+        Get real trades from NDAX API
+        
+        NOTE: This is intentionally a stub for paper trading mode.
+        For live NDAX API integration, see platform/ndax_live.py
+        """
+        logger.warning("Real NDAX API not implemented, using paper trading demo mode")
         return self._get_demo_trades(symbol, limit)
     
     def _get_real_ohlcv(
@@ -264,7 +276,11 @@ class MarketDataManager:
         interval: str,
         limit: int
     ) -> List[Dict[str, Any]]:
-        """Get real OHLCV from NDAX API"""
-        # TODO: Implement NDAX API integration
-        logger.warning("Real NDAX API not implemented, using demo mode")
+        """
+        Get real OHLCV from NDAX API
+        
+        NOTE: This is intentionally a stub for paper trading mode.
+        For live NDAX API integration, see platform/ndax_live.py
+        """
+        logger.warning("Real NDAX API not implemented, using paper trading demo mode")
         return self._get_demo_ohlcv(symbol, interval, limit)
