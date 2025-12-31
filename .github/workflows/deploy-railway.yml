@@ -13,7 +13,7 @@ on:
         type: choice
         options:
           - production
-          - staging
+         
 
 jobs:
   deploy:
@@ -22,16 +22,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
+    
       
       - name: Deploy to Railway
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
-          railway link ${{ secrets.RAILWAY_PROJECT_ID }}
-          railway up --detach
+         ${{ secrets.RAILWAY_PROJECT_ID }}
+          
       
       - name: Set Environment Variables
         env:
