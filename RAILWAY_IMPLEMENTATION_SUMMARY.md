@@ -28,13 +28,13 @@ All changes implemented, tested, and documented. Ready for Railway deployment.
   - Kept `NODE_ENV=production`
 
 #### `nixpacks.toml` - Optimized
-- **Before:** Basic npm install and pip install
+- **Before:** Basic npm install and pip install with postgresql
 - **After:** Production-optimized build process
 - **Changes:**
-  - Added `pip` to nixPkgs setup phase
-  - Use `npm ci --omit=dev` for faster, reliable builds
+  - Removed `postgresql` from nixPkgs (not needed for backend)
+  - Use `npm ci` for faster, reproducible builds
   - Added `--no-cache-dir` to pip install
-  - Fallback to `npm install` if npm ci fails
+  - Python 3.10 includes pip by default
   - Clear phase separation: setup → install → build → start
 
 #### `Procfile` - Updated
@@ -126,13 +126,12 @@ Protected Endpoints: ✅ 401 (auth required)
 ┌─────────────────────────────────────────┐
 │ 1. Setup Phase (nixpacks.toml)         │
 │    - Install Node.js 18.x               │
-│    - Install Python 3.10                │
-│    - Install pip                        │
+│    - Install Python 3.10 (includes pip) │
 └─────────────────────────────────────────┘
                     ↓
 ┌─────────────────────────────────────────┐
 │ 2. Install Phase                        │
-│    - npm ci --omit=dev || npm install   │
+│    - npm ci                             │
 │    - pip install --no-cache-dir -r ...  │
 └─────────────────────────────────────────┘
                     ↓
