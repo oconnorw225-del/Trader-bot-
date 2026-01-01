@@ -1,6 +1,5 @@
 [build]
 builder = "nixpacks"
-buildCommand = "npm install && npm run build && pip install -r requirements.txt"
 
 [deploy]
 startCommand = "npm run start:production"
@@ -11,5 +10,4 @@ restartPolicyMaxRetries = 10
 
 [env]
 NODE_ENV = "production"
-PORT = "3000"
-PYTHON_BACKEND_PORT = "8000"
+# Railway assigns PORT dynamically - do not hardcode it here
