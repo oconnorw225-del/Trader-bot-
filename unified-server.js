@@ -21,6 +21,7 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { existsSync } from 'fs';
 import axios from 'axios';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -121,6 +122,16 @@ app.get('/api/status', async (req, res) => {
       message: error.message,
     });
   }
+});
+
+// Stats endpoint
+app.get('/api/stats', (req, res) => {
+  res.json({
+    totalTrades: 0,
+    totalProfit: 0,
+    activeJobs: 0,
+    successRate: 0
+  });
 });
 
 // Exchange endpoints
@@ -274,6 +285,24 @@ app.get('/api/market/:symbol', async (req, res) => {
   }
 });
 
+// Feature toggle endpoints
+app.get('/api/features', (req, res) => {
+  res.json({
+    aiBot: true,
+    wizardPro: true,
+    stressTest: true,
+    strategyManagement: true,
+    todoList: true,
+    quantumEngine: true,
+    freelanceAutomation: true,
+    testLab: true,
+    advancedAnalytics: true,
+    riskManagement: true,
+    autoRecovery: true,
+    complianceChecks: true
+  });
+});
+
 // Metrics endpoint for Prometheus
 app.get('/metrics', (req, res) => {
   const metrics = {
@@ -411,9 +440,21 @@ if (TESTNET) {
   }, 5000); // Every 5 seconds
 }
 
-// Catch-all route for SPA
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+// Catch-all middleware for SPA (must come after all API routes)
+// Express 5 doesn't support wildcards in route patterns, so we use middleware
+app.use((req, res, next) => {
+  // Skip if it's an API request
+  if (req.path.startsWith('/api')) {
+    return next();
+  }
+  
+  const indexPath = path.join(__dirname, 'dist', 'index.html');
+  // Check if dist/index.html exists
+  if (existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send('Application not built. Run "npm run build" first.');
+  }
 });
 
 // Error handling middleware

@@ -44,6 +44,12 @@ export default defineConfig({
         target: 'http://localhost:3000',
         changeOrigin: true,
         secure: false,
+      },
+      // Proxy WebSocket connections
+      '/ws': {
+        target: 'ws://localhost:8080',
+        ws: true,
+        changeOrigin: true,
       }
     }
   },

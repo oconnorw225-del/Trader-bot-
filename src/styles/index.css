@@ -402,6 +402,27 @@ body {
   border-left: 4px solid #ef4444;
 }
 
+.alert-error {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border-left: 4px solid #ef4444;
+}
+
+.loading-indicator {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  gap: 15px;
+  color: var(--text-secondary);
+}
+
+.loading-indicator p {
+  margin: 0;
+  font-size: 14px;
+}
+
 /* Platform Cards */
 .platform-card {
   padding: 20px;
