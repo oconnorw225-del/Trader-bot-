@@ -218,10 +218,18 @@ class TradingEngine:
         
         Returns:
             Tuple of (execution_price, executed_quantity, status)
+        
+        NOTE: This is intentionally a stub for paper trading mode.
+        Live NDAX API integration requires:
+        - Valid NDAX API credentials in .env file
+        - Implementation of SendOrder API endpoint (see platform/ndax_live.py)
+        - Legal compliance and regulatory approval (see LIVE_TRADING_READINESS.md)
+        
+        For live trading implementation, refer to:
+        - LIVE_TRADING_SETUP_GUIDE.md
+        - platform/ndax_live.py - NDAXLiveClient class
         """
-        # TODO: Implement actual NDAX API integration
-        # For now, return demo values
-        logger.warning("Real NDAX API not implemented, using demo mode")
+        logger.warning("Real NDAX API not implemented, using paper trading demo mode")
         return self._get_demo_price(symbol), quantity, 'FILLED'
     
     def _get_demo_price(self, symbol: str) -> float:

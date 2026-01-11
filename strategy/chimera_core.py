@@ -117,14 +117,20 @@ def decide(market_state):
     """
     
     # ==========================================
-    # CURRENT IMPLEMENTATION (PLACEHOLDER ONLY)
+    # CURRENT IMPLEMENTATION (PAPER TRADING PLACEHOLDER)
     # ==========================================
-    # TODO: Replace this with your actual trading strategy
+    # NOTE: This is an intentional placeholder for paper trading mode.
     #
-    # This returns a static "BUY" signal for testing purposes.
-    # DO NOT use this in live trading!
+    # This function returns a static "BUY" signal for testing and demonstration.
+    # For production use, implement your custom trading strategy here.
     #
-    # Uncomment and implement your strategy logic below:
+    # IMPORTANT: Do not use this placeholder in live trading with real funds!
+    # See LIVE_TRADING_READINESS.md for requirements before going live.
+    #
+    # Implementation examples:
+    # - Technical indicators: RSI, MACD, Bollinger Bands
+    # - Machine learning models: scikit-learn, TensorFlow
+    # - Quantum algorithms: See src/quantum/quantumStrategies.js
     # ==========================================
     
     # import logging
