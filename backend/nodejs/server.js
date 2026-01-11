@@ -71,16 +71,6 @@ app.use(express.static(path.join(__dirname, '../../public')));
 // Serve mobile app static files
 app.use('/mobile', express.static(path.join(__dirname, '../../src/mobile')));
 
-// Apply authentication middleware to API routes
-// Skip if NODE_ENV=development and REQUIRE_AUTH=false
-const shouldRequireAuth = process.env.NODE_ENV !== 'development' || process.env.REQUIRE_AUTH !== 'false';
-if (shouldRequireAuth) {
-  app.use('/api/', requireAuth);
-}
-
-// Auto-start routes (protected by auth middleware if enabled)
-app.use('/api/autostart', autostartRoutes);
-
 // Configuration storage path
 const CONFIG_PATH = path.join(__dirname, '../../config');
 const CONFIG_FILE = path.join(CONFIG_PATH, 'app-config.json');
@@ -94,7 +84,7 @@ async function ensureConfigDir() {
   }
 }
 
-// Health check endpoint
+// Health check endpoint (must be public for Railway/monitoring)
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -103,6 +93,16 @@ app.get('/api/health', (req, res) => {
     version: '1.0.0'
   });
 });
+
+// Apply authentication middleware to remaining API routes
+// Skip if NODE_ENV=development and REQUIRE_AUTH=false
+const shouldRequireAuth = process.env.NODE_ENV !== 'development' || process.env.REQUIRE_AUTH !== 'false';
+if (shouldRequireAuth) {
+  app.use('/api/', requireAuth);
+}
+
+// Auto-start routes (protected by auth middleware if enabled)
+app.use('/api/autostart', autostartRoutes);
 
 // Stats endpoint - Import earningsTracker dynamically
 app.get('/api/stats', async (req, res) => {
