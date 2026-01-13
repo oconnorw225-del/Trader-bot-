@@ -1,12 +1,39 @@
 #!/bin/bash
 set -e
 
+# ============================================
+# DELETION FUNCTIONALITY DISABLED
+# ============================================
+# This script has been disabled to prevent accidental data loss.
+# All deletion operations have been removed.
+# If you need to delete branches, please do so manually via GitHub UI.
+# ============================================
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
+echo -e "${RED}============================================${NC}"
+echo -e "${RED}ERROR: Deletion functionality has been disabled${NC}"
+echo -e "${RED}============================================${NC}"
+echo ""
+echo -e "${YELLOW}This script has been disabled to prevent accidental deletion of branches.${NC}"
+echo "All deletion operations have been removed from the repository."
+echo ""
+echo "If you need to delete branches:"
+echo "  1. Go to GitHub repository in browser"
+echo "  2. Navigate to branches page"
+echo "  3. Manually delete branches after careful review"
+echo ""
+echo -e "${RED}Script execution blocked for safety.${NC}"
+echo -e "${RED}============================================${NC}"
+exit 1
+
+# Original script content below (DISABLED)
+# All branch deletion functionality has been removed
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}Delete Obsolete Branches Script${NC}"

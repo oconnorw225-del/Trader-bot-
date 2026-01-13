@@ -1,5 +1,7 @@
 # NDAX Quantum Engine - Complete Build
 
+> **⚠️ IMPORTANT NOTICE:** All deletion functionality has been permanently disabled in this repository to prevent accidental data loss. See [DELETION_FUNCTIONALITY_DISABLED.md](DELETION_FUNCTIONALITY_DISABLED.md) for details.
+
 [![Production Ready](https://img.shields.io/badge/status-production%20ready-brightgreen)](https://github.com/oconnorw225-del/ndax-quantum-engine)
 [![Tests](https://img.shields.io/badge/tests-350%2F378%20passing-success)](https://github.com/oconnorw225-del/ndax-quantum-engine)
 [![Build](https://img.shields.io/badge/build-passing-success)](https://github.com/oconnorw225-del/ndax-quantum-engine)

@@ -9,7 +9,6 @@ on:
         type: choice
         options:
           - 'list-branches'
-          - 'delete-obsolete'
           - 'create-merge-prs'
       dry_run:
         description: 'Dry run (no actual changes)'
@@ -43,72 +42,12 @@ jobs:
           echo ""
           echo "Total branches: $(cat branches.txt | wc -l)"
           
-      - name: Delete obsolete branches
-        if: inputs.action == 'delete-obsolete'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          echo "## Deleting Obsolete Branches"
-          
-          if [ "${{ inputs.dry_run }}" = "true" ]; then
-            echo "DRY RUN MODE - No changes will be made"
-            echo ""
-          fi
-          
-          # Define branches to delete
-          BRANCHES_TO_DELETE=(
-            "copilot/improve-variable-and-function-names"
-            "copilot/improve-variable-function-names"
-            "copilot/setup-copilot-instructions"
-            "copilot/setup-copilot-instructions-again"
-            "copilot/setup-copilot-instructions-another-one"
-            "copilot/rebase-copilot-instructions-branch"
-            "copilot/add-todo-list-application"
-            "copilot/add-wallet-for-bots"
-            "copilot/finish-original-issue"
-            "copilot/fix-copilot-access-issue"
-            "copilot/fix-copilot-review-issue"
-            "copilot/fix-copilot-review-issue-again"
-            "copilot/fix-failjob-async-await-issue"
-            "copilot/fix-pull-request-comments"
-            "copilot/resolve-get-it-done-issue"
-            "copilot/resolve-pull-request-overview-issues"
-            "copilot/status-report"
-            "copilot/remove-all-duplicates"
-            "copilot/remove-fork-invitation"
-            "copilot/remove-forking-allowance"
-            "copilot/update-forking-to-false"
-            "copilot/revoke-vlones-access"
-            "copilot/clean-up-branches-and-push"
-            "copilot/numerous-pigeon"
-            "copilot/run-command-in-terminal"
-          )
-          
-          # Add all autopilot fix branches
-          AUTOPILOT_BRANCHES=$(git branch -r | grep 'origin/autopilot/fix-' | sed 's|origin/||' || true)
-          
-          DELETED=0
-          SKIPPED=0
-          
-          for branch in "${BRANCHES_TO_DELETE[@]}" $AUTOPILOT_BRANCHES; do
-            if git ls-remote --heads origin "$branch" | grep -q "$branch"; then
-              echo "Deleting: $branch"
-              if [ "${{ inputs.dry_run }}" != "true" ]; then
-                gh api -X DELETE "repos/${{ github.repository }}/git/refs/heads/$branch" && ((DELETED++)) || ((SKIPPED++))
-              else
-                echo "  [DRY RUN] Would delete $branch"
-                ((DELETED++))
-              fi
-            else
-              echo "  Skip: $branch (doesn't exist)"
-              ((SKIPPED++))
-            fi
-          done
-          
-          echo ""
-          echo "Summary:"
-          echo "  Deleted: $DELETED"
-          echo "  Skipped: $SKIPPED"
+      # DISABLED: Delete obsolete branches
+      # Deletion functionality has been removed to prevent accidental data loss
+      # This step has been commented out and will no longer run
+      # - name: Delete obsolete branches
+      #   if: inputs.action == 'delete-obsolete'
+      #   [DELETION FUNCTIONALITY DISABLED]
           
       - name: Create merge PRs
         if: inputs.action == 'create-merge-prs'

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Force-apply and cleanup automation
 # Scans all remote branches, attempts to cherry-pick commits missing from main into a fix branch,
-# opens PRs for successful cherry-picks, archives and backs up originals, and optionally deletes
-# original remote branches when run with --confirm-delete.
+# opens PRs for successful cherry-picks, archives and backs up originals
+# DELETION FUNCTIONALITY HAS BEEN DISABLED - The --confirm-delete flag no longer works
 #
 # USAGE:
 #  Dry-run (recommended): ./scripts/force-apply-and-cleanup.sh
 #  Apply (create fix branches and open PRs): ./scripts/force-apply-and-cleanup.sh --apply
-#  Apply and then delete archived branches (DESTRUCTIVE): ./scripts/force-apply-and-cleanup.sh --apply --confirm-delete
+#  Apply (DELETION DISABLED): ./scripts/force-apply-and-cleanup.sh --apply --confirm-delete (WILL NOT DELETE)
 #
 # REQUIREMENTS (for apply):
 #  - git, jq, tar, node/npm available
@@ -25,14 +25,21 @@ DEFAULT_BASE="${BASE_BRANCH:-main}"
 
 DRY_RUN=true
 APPLY=false
-CONFIRM_DELETE=false
+CONFIRM_DELETE=false  # ALWAYS FALSE - deletion functionality disabled
 
 while (( "$#" )); do
   case "$1" in
     --apply) APPLY=true; DRY_RUN=false; shift ;;
-    --confirm-delete) CONFIRM_DELETE=true; shift ;;
+    --confirm-delete) 
+      echo "WARNING: --confirm-delete flag is ignored. Deletion functionality has been disabled for safety."
+      shift 
+      ;;
     --base) DEFAULT_BASE="$2"; shift 2 ;;
-    --help|-h) echo "Usage: $0 [--apply] [--confirm-delete] [--base <branch>]"; exit 0 ;;
+    --help|-h) 
+      echo "Usage: $0 [--apply] [--base <branch>]"
+      echo "NOTE: --confirm-delete flag has been disabled and will be ignored"
+      exit 0 
+      ;;
     *) echo "Unknown arg: $1"; exit 1 ;;
   esac
 done
@@ -135,11 +142,12 @@ for br in $branches; do
   popd >/dev/null
   git worktree remove --force "$worktree" >/dev/null 2>&1 || true
 
+  # DELETION FUNCTIONALITY DISABLED
   # delete original remote branch if confirmed and apply run
-  if [ "$APPLY" = true ] && [ "$CONFIRM_DELETE" = true ]; then
-    echo "  ▶ Deleting original remote branch origin/$br"
-    git push origin --delete "$br" || echo "    ⚠ Failed to delete $br"
-  fi
+  # if [ "$APPLY" = true ] && [ "$CONFIRM_DELETE" = true ]; then
+  #   echo "  ▶ Deleting original remote branch origin/$br"
+  #   git push origin --delete "$br" || echo "    ⚠ Failed to delete $br"
+  # fi
 
 done
 
@@ -152,10 +160,13 @@ echo "Dry-run complete. No branches were pushed/deleted."
 
 if [ "$DRY_RUN" = false ]; then
   echo "Apply complete: fix branches created and PRs opened for applied commits (where possible)."
-  if [ "$CONFIRM_DELETE" = true ]; then
-    echo "Original branches were deleted (best-effort)."
-  else
-    echo "Original branches not deleted. To delete, re-run with --confirm-delete (destructive)."
+  # DELETION FUNCTIONALITY DISABLED
+  # if [ "$CONFIRM_DELETE" = true ]; then
+  #   echo "Original branches were deleted (best-effort)."
+  # else
+  #   echo "Original branches not deleted. To delete, re-run with --confirm-delete (destructive)."
+  # fi
+  echo "Original branches NOT deleted. Deletion functionality has been permanently disabled for safety."
   fi
 fi
 
