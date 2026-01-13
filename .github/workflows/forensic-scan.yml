@@ -196,42 +196,42 @@ jobs:
           echo "============================"
           
           if [ -f "$OUTPUT_DIR/forensic_report.json" ]; then
-            python3 << 'PYTHON_SCRIPT'
-import json
-import os
-
-output_dir = os.environ['OUTPUT_DIR']
-report_path = f"{output_dir}/forensic_report.json"
-
-try:
-    with open(report_path, 'r') as f:
-        report = json.load(f)
-    
-    summary = report.get('summary', {}).get('overview', {})
-    
-    print(f"Generated At: {report.get('generated_at', 'N/A')}")
-    print(f"Report Type: {report.get('report_type', 'N/A')}")
-    print("")
-    print("Overview:")
-    print(f"  Total Wallets: {summary.get('total_wallets', 0)}")
-    print(f"  Total Transactions: {summary.get('total_transactions', 0)}")
-    print(f"  Chains Analyzed: {summary.get('chains_analyzed', 0)}")
-    print(f"  Avg Transactions/Wallet: {summary.get('avg_transactions_per_wallet', 0)}")
-    print("")
-    
-    analysis = report.get('analysis', {})
-    volume = analysis.get('volume_analysis', {})
-    print("Volume Analysis:")
-    print(f"  Total Volume: {volume.get('total_volume', 0)}")
-    print(f"  Total Fees: {volume.get('total_fees', 0)}")
-    print(f"  Net Outflow: {volume.get('net_outflow', 0)}")
-    print("")
-    
-    print("✅ Report summary displayed")
-
-except Exception as e:
-    print(f"⚠️  Could not parse report: {e}")
-PYTHON_SCRIPT
+            python3 << 'EOF'
+          import json
+          import os
+          
+          output_dir = os.environ['OUTPUT_DIR']
+          report_path = f"{output_dir}/forensic_report.json"
+          
+          try:
+              with open(report_path, 'r') as f:
+                  report = json.load(f)
+              
+              summary = report.get('summary', {}).get('overview', {})
+              
+              print(f"Generated At: {report.get('generated_at', 'N/A')}")
+              print(f"Report Type: {report.get('report_type', 'N/A')}")
+              print("")
+              print("Overview:")
+              print(f"  Total Wallets: {summary.get('total_wallets', 0)}")
+              print(f"  Total Transactions: {summary.get('total_transactions', 0)}")
+              print(f"  Chains Analyzed: {summary.get('chains_analyzed', 0)}")
+              print(f"  Avg Transactions/Wallet: {summary.get('avg_transactions_per_wallet', 0)}")
+              print("")
+              
+              analysis = report.get('analysis', {})
+              volume = analysis.get('volume_analysis', {})
+              print("Volume Analysis:")
+              print(f"  Total Volume: {volume.get('total_volume', 0)}")
+              print(f"  Total Fees: {volume.get('total_fees', 0)}")
+              print(f"  Net Outflow: {volume.get('net_outflow', 0)}")
+              print("")
+              
+              print("✅ Report summary displayed")
+          
+          except Exception as e:
+              print(f"⚠️  Could not parse report: {e}")
+          EOF
           else
             echo "⚠️  Report file not found"
           fi
