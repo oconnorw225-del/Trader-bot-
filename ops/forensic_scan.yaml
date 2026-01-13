@@ -1,0 +1,196 @@
+# ============================================================================
+# Forensic Fund Flow Analysis Configuration
+# ============================================================================
+# Purpose: Read-only forensic scanning of blockchain wallets and fund flows
+#          for audit and analysis purposes only. No modifications are made.
+#
+# Key Features:
+# - Audit-only mode: No transactions or modifications
+# - Read-only permissions: Only queries blockchain data
+# - Chimera coordination: Multi-chain scanning coordination
+# - Comprehensive reporting: JSON and CSV output formats
+#
+# Safety Guarantees:
+# - Zero write operations to any blockchain
+# - No private key usage or signing
+# - No transaction broadcasting
+# - Pure analysis and reporting
+# ============================================================================
+
+# Operation mode - strictly audit only
+mode: audit_only
+
+# Permissions - read-only access to blockchain data
+permissions:
+  read: true
+  write: false
+  sign: false
+  send: false
+
+# Chimera coordinator settings
+chimera:
+  enabled: true
+  role: coordinator
+  sync: true
+  no_sign: true
+  no_send: true
+
+# Blockchain networks to scan
+chains:
+  - BTC    # Bitcoin mainnet
+  - ETH    # Ethereum mainnet
+  - TRON   # TRON mainnet
+  - BSC    # Binance Smart Chain
+  - MATIC  # Polygon
+
+# Scan configuration
+scan:
+  # What to analyze
+  scope:
+    - wallet_discovery      # Enumerate all known wallets
+    - balance_analysis      # Check current balances
+    - outbound_transfers    # Track outgoing transactions
+    - inbound_transfers     # Track incoming transactions
+    - transaction_history   # Full transaction history
+    - token_holdings        # ERC20/TRC20 token balances
+  
+  # Time range for historical analysis
+  time_range:
+    enabled: true
+    start_date: null        # null = beginning of wallet history
+    end_date: null          # null = current timestamp
+    max_days: 90            # Limit to last 90 days if full history is too large
+  
+  # Transaction filtering
+  filters:
+    min_value_usd: 0.01     # Ignore dust transactions below $0.01
+    max_transactions: 10000  # Limit per wallet to prevent overwhelming reports
+    include_failed: false    # Exclude failed transactions
+    include_pending: true    # Include pending transactions
+
+# Rate limiting (to avoid API throttling)
+rate_limits:
+  requests_per_second: 5
+  concurrent_requests: 3
+  retry_on_limit: true
+  max_retries: 3
+  backoff_multiplier: 2
+
+# Output configuration
+output:
+  # Directory for generated reports
+  output_dir: results/forensic
+  
+  # Report formats
+  formats:
+    - json    # Machine-readable JSON format
+    - csv     # Human-readable CSV format
+  
+  # Report components
+  reports:
+    - wallet_inventory      # List of all discovered wallets
+    - balance_snapshot      # Current balances by wallet and chain
+    - transfer_log          # All transfers in/out
+    - flow_analysis         # Fund flow patterns and relationships
+    - summary_statistics    # Aggregate stats and insights
+  
+  # Filename template
+  filename_template: "forensic_scan_{timestamp}_{chain}"
+  
+  # Include in reports
+  include:
+    - wallet_addresses
+    - transaction_hashes
+    - block_numbers
+    - timestamps
+    - amounts
+    - fees
+    - sender_receiver
+    - transaction_status
+  
+  # Exclude from reports (for privacy/security)
+  exclude:
+    - private_keys
+    - seed_phrases
+    - api_keys
+    - personal_data
+
+# Data sources
+data_sources:
+  # Blockchain explorers
+  explorers:
+    BTC:
+      - name: mempool.space
+        url: https://mempool.space/api
+        type: rest_api
+    ETH:
+      - name: etherscan
+        url: https://api.etherscan.io/api
+        type: rest_api
+    TRON:
+      - name: tronscan
+        url: https://apilist.tronscan.org/api
+        type: rest_api
+  
+  # Local wallet sources
+  local_wallets:
+    enabled: true
+    scan_paths:
+      - wallets/          # Local wallet directory
+      - .wallets/         # Hidden wallet directory
+  
+  # Exchange APIs (read-only)
+  exchanges:
+    enabled: false        # Disabled by default for security
+    providers: []         # No exchange APIs configured
+
+# Audit trail
+audit:
+  enabled: true
+  log_level: INFO
+  log_file: logs/forensic_scan.log
+  include_api_calls: true
+  include_timestamps: true
+  include_request_params: false  # Don't log sensitive params
+
+# Safety checks
+safety:
+  # Verify read-only mode before execution
+  verify_no_write_operations: true
+  verify_no_private_key_usage: true
+  verify_no_transaction_signing: true
+  verify_no_transaction_broadcast: true
+  
+  # Alert on any suspicious operations
+  alert_on_write_attempt: true
+  alert_on_sign_attempt: true
+  alert_on_send_attempt: true
+  
+  # Dry run mode for testing
+  dry_run: false
+
+# Performance settings
+performance:
+  max_workers: 4          # Parallel scanning workers
+  timeout_seconds: 300    # 5 minute timeout per wallet
+  cache_enabled: true     # Cache API responses
+  cache_ttl_seconds: 3600 # 1 hour cache
+
+# Error handling
+error_handling:
+  continue_on_error: true  # Don't stop on individual wallet failures
+  log_errors: true
+  include_errors_in_report: true
+  max_consecutive_errors: 10  # Stop if too many consecutive failures
+
+# Metadata
+metadata:
+  version: "1.0.0"
+  created: "2026-01-13"
+  description: "Forensic fund flow analysis configuration for read-only blockchain scanning"
+  contact: "security@trader-bot.example"
+  compliance:
+    - "Read-only access only"
+    - "No transaction capabilities"
+    - "Audit and reporting purposes"
+    - "GDPR compliant (no personal data)"
