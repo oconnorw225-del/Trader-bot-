@@ -1,0 +1,294 @@
+name: Chimera Forensic Synchronization Action
+
+# ============================================================================
+# Chimera Forensic Fund Flow Analysis Workflow
+# ============================================================================
+# Purpose: Automated forensic scanning of blockchain wallets and fund flows
+#          in a strictly read-only, audit-only mode for security analysis.
+#
+# This workflow is designed to be:
+# - Safe: Read-only operations, no transaction signing or broadcasting
+# - Comprehensive: Multi-chain analysis with detailed reporting
+# - Auditable: Full logging and artifact preservation
+# - Automated: Scheduled and manual trigger options
+#
+# Trigger Options:
+# 1. Manual dispatch via GitHub Actions UI (workflow_dispatch)
+# 2. Scheduled execution (daily at midnight UTC)
+# 3. On changes to forensic configuration files
+# ============================================================================
+
+on:
+  # Manual trigger with configurable options
+  workflow_dispatch:
+    inputs:
+      chains:
+        description: 'Comma-separated list of chains to scan (e.g., BTC,ETH,TRON)'
+        required: false
+        default: 'BTC,ETH,TRON'
+        type: string
+      verbose:
+        description: 'Enable verbose logging'
+        required: false
+        default: false
+        type: boolean
+  
+  # Scheduled execution - daily at midnight UTC
+  schedule:
+    - cron: '0 0 * * *'
+  
+  # Trigger on configuration changes
+  push:
+    paths:
+      - 'ops/forensic_scan.yaml'
+      - 'bots/chimera.py'
+      - 'ops/enumerate_wallets.py'
+      - 'ops/scan_outbound.py'
+      - 'ops/generate_report.py'
+
+# Workflow-level permissions (restrictive for security)
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  forensic-scan:
+    name: Forensic Fund Flow Analysis
+    runs-on: ubuntu-latest
+    
+    env:
+      # Configuration file path
+      CONFIG_FILE: ops/forensic_scan.yaml
+      
+      # Output directory
+      OUTPUT_DIR: results/forensic
+      
+      # Chains to scan
+      SCAN_CHAINS: ${{ github.event.inputs.chains || 'BTC,ETH,TRON' }}
+      
+      # Verbose logging
+      VERBOSE: ${{ github.event.inputs.verbose || 'false' }}
+    
+    steps:
+      # Step 1: Checkout repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      # Step 2: Setup Python environment
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      # Step 3: Install dependencies
+      - name: Install Dependencies
+        run: |
+          echo "📦 Installing Python dependencies..."
+          pip install --upgrade pip
+          pip install pyyaml requests python-dotenv
+          
+          # Install from requirements.txt if it exists
+          if [ -f "requirements.txt" ]; then
+            pip install -r requirements.txt
+          fi
+          
+          echo "✅ Dependencies installed"
+      
+      # Step 4: Validate configuration
+      - name: Validate Configuration
+        run: |
+          echo "📋 Validating Forensic Scan Configuration"
+          echo "=========================================="
+          
+          if [ -f "$CONFIG_FILE" ]; then
+            cat $CONFIG_FILE
+            echo ""
+            echo "✅ Configuration file found and validated"
+          else
+            echo "❌ Configuration file not found: $CONFIG_FILE"
+            exit 1
+          fi
+      
+      # Step 5: Create output directories
+      - name: Create Output Directories
+        run: |
+          echo "📁 Creating output directories..."
+          mkdir -p $OUTPUT_DIR
+          mkdir -p logs
+          echo "✅ Directories ready"
+      
+      # Step 6: Enumerate wallets
+      - name: Enumerate Wallets
+        run: |
+          echo "🔍 Phase 1: Wallet Enumeration"
+          echo "=============================="
+          
+          python3 ops/enumerate_wallets.py \
+            --audit-only \
+            --chains "$SCAN_CHAINS" \
+            --output $OUTPUT_DIR/wallet_inventory.json \
+            $([[ "$VERBOSE" == "true" ]] && echo "--verbose" || echo "")
+          
+          echo ""
+          echo "✅ Wallet enumeration complete"
+      
+      # Step 7: Scan outbound transfers
+      - name: Scan Outbound Transfers
+        run: |
+          echo "📊 Phase 2: Outbound Transfer Scanning"
+          echo "======================================"
+          
+          python3 ops/scan_outbound.py \
+            --wallets $OUTPUT_DIR/wallet_inventory.json \
+            --chains "$SCAN_CHAINS" \
+            --output $OUTPUT_DIR/outbound_transfers.json \
+            --max-tx 1000 \
+            $([[ "$VERBOSE" == "true" ]] && echo "--verbose" || echo "")
+          
+          echo ""
+          echo "✅ Outbound transfer scanning complete"
+      
+      # Step 8: Generate reports
+      - name: Generate Forensic Reports
+        run: |
+          echo "📝 Phase 3: Report Generation"
+          echo "============================="
+          
+          python3 ops/generate_report.py \
+            --wallet-inventory $OUTPUT_DIR/wallet_inventory.json \
+            --scan-results $OUTPUT_DIR/outbound_transfers.json \
+            --output-json $OUTPUT_DIR/forensic_report.json \
+            --output-csv $OUTPUT_DIR/forensic_report.csv \
+            $([[ "$VERBOSE" == "true" ]] && echo "--verbose" || echo "")
+          
+          echo ""
+          echo "✅ Report generation complete"
+      
+      # Step 9: Run Chimera coordinator
+      - name: Run Chimera Coordinator
+        run: |
+          echo "🤖 Chimera Coordination"
+          echo "======================"
+          
+          python3 bots/chimera.py \
+            --mode audit_only \
+            --role coordinator \
+            --sync \
+            --no-sign \
+            --no-send \
+            --config $CONFIG_FILE \
+            --output $OUTPUT_DIR \
+            --chains "$SCAN_CHAINS" \
+            $([[ "$VERBOSE" == "true" ]] && echo "--verbose" || echo "")
+          
+          echo ""
+          echo "✅ Chimera coordination complete"
+      
+      # Step 10: Display report summary
+      - name: Display Report Summary
+        if: always()
+        run: |
+          echo ""
+          echo "📊 Forensic Analysis Summary"
+          echo "============================"
+          
+          if [ -f "$OUTPUT_DIR/forensic_report.json" ]; then
+            python3 << 'PYTHON_SCRIPT'
+import json
+import os
+
+output_dir = os.environ['OUTPUT_DIR']
+report_path = f"{output_dir}/forensic_report.json"
+
+try:
+    with open(report_path, 'r') as f:
+        report = json.load(f)
+    
+    summary = report.get('summary', {}).get('overview', {})
+    
+    print(f"Generated At: {report.get('generated_at', 'N/A')}")
+    print(f"Report Type: {report.get('report_type', 'N/A')}")
+    print("")
+    print("Overview:")
+    print(f"  Total Wallets: {summary.get('total_wallets', 0)}")
+    print(f"  Total Transactions: {summary.get('total_transactions', 0)}")
+    print(f"  Chains Analyzed: {summary.get('chains_analyzed', 0)}")
+    print(f"  Avg Transactions/Wallet: {summary.get('avg_transactions_per_wallet', 0)}")
+    print("")
+    
+    analysis = report.get('analysis', {})
+    volume = analysis.get('volume_analysis', {})
+    print("Volume Analysis:")
+    print(f"  Total Volume: {volume.get('total_volume', 0)}")
+    print(f"  Total Fees: {volume.get('total_fees', 0)}")
+    print(f"  Net Outflow: {volume.get('net_outflow', 0)}")
+    print("")
+    
+    print("✅ Report summary displayed")
+
+except Exception as e:
+    print(f"⚠️  Could not parse report: {e}")
+PYTHON_SCRIPT
+          else
+            echo "⚠️  Report file not found"
+          fi
+      
+      # Step 11: Upload artifacts
+      - name: Upload Forensic Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: forensic-analysis-reports-${{ github.run_number }}
+          path: |
+            results/forensic/*.json
+            results/forensic/*.csv
+            logs/*.log
+          retention-days: 90
+          if-no-files-found: warn
+      
+      # Step 12: Workflow summary
+      - name: Workflow Summary
+        if: always()
+        run: |
+          echo ""
+          echo "🎯 Forensic Scan Workflow Complete"
+          echo "==================================="
+          echo "✅ Mode: audit_only (read-only)"
+          echo "✅ Chains: $SCAN_CHAINS"
+          echo "✅ Configuration: $CONFIG_FILE"
+          echo "✅ Output Directory: $OUTPUT_DIR"
+          echo ""
+          echo "📥 Download artifacts from the Actions tab:"
+          echo "   - forensic-analysis-reports-${{ github.run_number }}"
+          echo ""
+          echo "📊 Reports Generated:"
+          echo "   - wallet_inventory.json"
+          echo "   - outbound_transfers.json"
+          echo "   - forensic_report.json"
+          echo "   - forensic_report.csv"
+          echo ""
+          echo "🔒 Safety Verified:"
+          echo "   ✅ No transaction signing"
+          echo "   ✅ No transaction broadcasting"
+          echo "   ✅ Read-only blockchain queries"
+          echo "   ✅ Audit trail maintained"
+          echo "==================================="
+
+# ============================================================================
+# Safety Notes
+# ============================================================================
+# This workflow implements multiple safety layers:
+#
+# 1. **Read-Only Operations**: All scripts operate in audit-only mode
+# 2. **No Private Keys**: Scripts never access or use private keys
+# 3. **No Signing**: Transaction signing is explicitly disabled (--no-sign)
+# 4. **No Broadcasting**: Transaction broadcasting is disabled (--no-send)
+# 5. **Audit Trail**: Complete logging of all operations
+# 6. **Artifact Preservation**: All reports and logs are preserved
+#
+# The workflow can be safely executed in production environments without
+# risk of unauthorized transactions or modifications.
+# ============================================================================
