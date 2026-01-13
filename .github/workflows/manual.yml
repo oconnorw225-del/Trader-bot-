@@ -64,16 +64,24 @@ jobs:
 
         git push origin main
 
-    - name: Delete all other branches
+    - name: Delete all other branches (DISABLED)
       run: |
-        for BRANCH in $(git branch -r | grep -v main | sed 's/origin\///'); do
-          echo "Deleting $BRANCH"
-          git push origin --delete $BRANCH || true
-        done
+        # DELETION FUNCTIONALITY DISABLED
+        # This step has been permanently disabled to prevent accidental data loss
+        echo "ERROR: Deletion functionality has been disabled"
+        echo "If you need to delete branches, please do so manually via GitHub UI"
+        # for BRANCH in $(git branch -r | grep -v main | sed 's/origin\///'); do
+        #   echo "Deleting $BRANCH"
+        #   git push origin --delete $BRANCH || true
+        # done
 
-    - name: Delete stale tags
+    - name: Delete stale tags (DISABLED)
       run: |
-        git tag -l | xargs -n 1 git push --delete origin || true
+        # DELETION FUNCTIONALITY DISABLED
+        # This step has been permanently disabled to prevent accidental data loss
+        echo "ERROR: Tag deletion has been disabled"
+        echo "If you need to delete tags, please do so manually via GitHub UI"
+        # git tag -l | xargs -n 1 git push --delete origin || true
 
     - name: Repo cleanup complete
-      run: echo "Repository is now fully cleaned. Only 'main' remains."
+      run: echo "Repository merge complete. Deletion operations have been disabled."

@@ -1,11 +1,30 @@
 #!/usr/bin/env python3
 """
 Branch Cleanup Helper for NDAX Quantum Engine
+DELETION FUNCTIONALITY DISABLED - This script has been disabled to prevent accidental data loss
 Generates commands and provides guidance for cleaning up 24 copilot branches
 """
 
 import sys
 from datetime import datetime
+
+print("=" * 60)
+print("ERROR: Deletion functionality has been disabled")
+print("=" * 60)
+print()
+print("This script has been disabled to prevent accidental deletion of branches.")
+print("All deletion operations have been removed from the repository.")
+print()
+print("If you need to delete branches:")
+print("  1. Go to GitHub repository in browser")
+print("  2. Navigate to branches page")
+print("  3. Manually delete branches after careful review")
+print()
+print("Script execution blocked for safety.")
+print("=" * 60)
+sys.exit(1)
+
+# Original script content below (DISABLED)
 
 # Top 8 branches to merge to main
 TOP_8_BRANCHES = [

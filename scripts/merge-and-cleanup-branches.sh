@@ -1,7 +1,28 @@
 #!/bin/bash
 set -e
 
-# Colors for output
+# DELETION FUNCTIONALITY DISABLED - This script has been disabled to prevent accidental data loss
+
+# ============================================
+# DELETION FUNCTIONALITY DISABLED
+# ============================================
+echo -e "\033[0;31m============================================\033[0m"
+echo -e "\033[0;31mERROR: Deletion functionality has been disabled\033[0m"
+echo -e "\033[0;31m============================================\033[0m"
+echo ""
+echo "This script has been disabled to prevent accidental deletion of branches."
+echo "All deletion operations have been removed from the repository."
+echo ""
+echo "If you need to delete branches:"
+echo "  1. Go to GitHub repository in browser"
+echo "  2. Navigate to branches page"
+echo "  3. Manually delete branches after careful review"
+echo ""
+echo -e "\033[0;31mScript execution blocked for safety.\033[0m"
+echo -e "\033[0;31m============================================\033[0m"
+exit 1
+
+# Colors for output (SCRIPT DISABLED BELOW THIS LINE)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
