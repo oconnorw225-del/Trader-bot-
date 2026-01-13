@@ -2,9 +2,29 @@
 set -e
 
 # Branch Cleanup Execution Script
+# DELETION FUNCTIONALITY DISABLED - This script has been disabled to prevent accidental data loss
 # Uses git push for branch deletion (works without gh CLI)
 
-# Colors
+# ============================================
+# DELETION FUNCTIONALITY DISABLED
+# ============================================
+echo -e "\033[0;31m============================================\033[0m"
+echo -e "\033[0;31mERROR: Deletion functionality has been disabled\033[0m"
+echo -e "\033[0;31m============================================\033[0m"
+echo ""
+echo "This script has been disabled to prevent accidental deletion of branches."
+echo "All deletion operations have been removed from the repository."
+echo ""
+echo "If you need to delete branches:"
+echo "  1. Go to GitHub repository in browser"
+echo "  2. Navigate to branches page"
+echo "  3. Manually delete branches after careful review"
+echo ""
+echo -e "\033[0;31mScript execution blocked for safety.\033[0m"
+echo -e "\033[0;31m============================================\033[0m"
+exit 1
+
+# Colors (SCRIPT DISABLED BELOW THIS LINE)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -20,7 +40,7 @@ echo
 DELETED_COUNT=0
 FAILED_COUNT=0
 
-# Function to delete remote branch using git push
+# Function to delete remote branch using git push (DISABLED)
 delete_branch() {
     local branch=$1
     local reason=$2
@@ -28,13 +48,15 @@ delete_branch() {
     echo -e "${BLUE}Deleting:${NC} ${branch}"
     echo -e "  ${BLUE}Reason:${NC} ${reason}"
     
-    if git push origin --delete "$branch" 2>/dev/null; then
-        echo -e "${GREEN}  ✓ Deleted successfully${NC}"
-        ((DELETED_COUNT++))
-    else
-        echo -e "${YELLOW}  ⚠ Already deleted or not found${NC}"
-        ((FAILED_COUNT++))
-    fi
+    # DELETION DISABLED
+    # if git push origin --delete "$branch" 2>/dev/null; then
+    #     echo -e "${GREEN}  ✓ Deleted successfully${NC}"
+    #     ((DELETED_COUNT++))
+    # else
+    #     echo -e "${YELLOW}  ⚠ Already deleted or not found${NC}"
+    #     ((FAILED_COUNT++))
+    # fi
+    echo -e "${RED}  ✗ Deletion disabled for safety${NC}"
     echo
 }
 
