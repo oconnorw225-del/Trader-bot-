@@ -33,6 +33,7 @@ import sys
 import json
 import time
 import yaml
+import argparse
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 
@@ -67,25 +68,24 @@ class Phase1EvacuationBot:
         # Load Phase-1 contract configuration
         self.config = self._load_contract()
         
-        # Initialize report structure
+        # Initialize report structure matching expected format
+        recovery_wallets_config = self.config.get('recovery_wallets', {})
+        
+        # Convert keys to lowercase for consistency (bitcoin, ethereum)
+        recovery_wallets = {}
+        for key, value in recovery_wallets_config.items():
+            key_lower = 'bitcoin' if key.upper() == 'BTC' else ('ethereum' if key.upper() == 'ETH' else key.lower())
+            recovery_wallets[key_lower] = str(value) if isinstance(value, (int, float)) else value
+        
         self.report = {
             'phase': 1,
-            'execution_mode': self.execution_mode,
-            'non_blocking': self.non_blocking,
-            'dry_run': self.dry_run,
-            'timestamp': datetime.utcnow().isoformat() + 'Z',
-            'start_time': time.time(),
-            'summary': {
-                'total_wallets_scanned': 0,
-                'successful_transfers': 0,
-                'failed_transfers': 0,
-                'skipped_assets': 0,
-                'total_btc_transferred': 0.0,
-                'total_eth_transferred': 0.0,
-                'total_gas_spent_eth': 0.0
-            },
-            'transfers': [],
+            'mode': 'dry_run' if self.dry_run else 'live',
+            'recovery_wallets': recovery_wallets,
+            'wallets_processed': [],
+            'balances_detected': [],
+            'simulated_transfers': [],
             'skipped_assets': [],
+            'blocked_assets': [],
             'errors': []
         }
     
@@ -172,7 +172,12 @@ class Phase1EvacuationBot:
         if eth_source_key:
             print("  ✅ Found ETH source wallet in environment")
         
-        self.report['summary']['total_wallets_scanned'] = len(discovered_wallets)
+        # Record wallets processed
+        for wallet in discovered_wallets:
+            self.report['wallets_processed'].append({
+                'address': wallet['address'],
+                'chain': wallet['chain']
+            })
         
         print(f"\n✅ Discovered {len(discovered_wallets)} wallets")
         return discovered_wallets
@@ -201,6 +206,14 @@ class Phase1EvacuationBot:
             chain = wallet['chain']
             address = wallet['address']
             balance = wallet['balance']
+            
+            # Record balance detected
+            if balance > 0:
+                self.report['balances_detected'].append({
+                    'address': address,
+                    'chain': chain,
+                    'balance': balance
+                })
             
             # Skip if not a native asset (BTC or ETH)
             if chain not in ['BTC', 'ETH']:
@@ -262,21 +275,12 @@ class Phase1EvacuationBot:
                 continue
             
             # Execute transfer
-            success = self._execute_transfer(
+            self._execute_transfer(
                 from_address=address,
                 to_address=recovery_address,
                 amount=transfer_amount,
                 chain=chain
             )
-            
-            if success:
-                self.report['summary']['successful_transfers'] += 1
-                if chain == 'BTC':
-                    self.report['summary']['total_btc_transferred'] += transfer_amount
-                elif chain == 'ETH':
-                    self.report['summary']['total_eth_transferred'] += transfer_amount
-            else:
-                self.report['summary']['failed_transfers'] += 1
     
     def _execute_transfer(
         self,
@@ -320,18 +324,17 @@ class Phase1EvacuationBot:
             tx_hash = f"sim_{chain}_{int(time.time())}"
             status = "simulated"
         
-        # Record transfer in report
+        # Record simulated transfer in report
         transfer_record = {
-            'from_address': from_address,
-            'to_address': to_address,
+            'from': from_address,
+            'to': to_address,
             'amount': amount,
-            'chain': chain,
+            'asset': chain,
             'tx_hash': tx_hash,
-            'status': status,
-            'timestamp': datetime.utcnow().isoformat() + 'Z'
+            'status': status
         }
         
-        self.report['transfers'].append(transfer_record)
+        self.report['simulated_transfers'].append(transfer_record)
         
         print(f"     ✅ Transfer recorded: {tx_hash}")
         return True
@@ -360,11 +363,8 @@ class Phase1EvacuationBot:
             'wallet': wallet,
             'chain': chain,
             'asset_type': asset_type,
-            'reason': reason,
-            'timestamp': datetime.utcnow().isoformat() + 'Z'
+            'reason': reason
         })
-        
-        self.report['summary']['skipped_assets'] += 1
     
     def _record_error(
         self,
@@ -384,10 +384,11 @@ class Phase1EvacuationBot:
         """
         error_record = {
             'context': context,
-            'message': message,
-            'wallet': wallet,
-            'timestamp': datetime.utcnow().isoformat() + 'Z'
+            'message': message
         }
+        
+        if wallet:
+            error_record['wallet'] = wallet
         
         self.report['errors'].append(error_record)
         
@@ -411,13 +412,16 @@ class Phase1EvacuationBot:
         print("\n📝 Recording blocked assets summary...")
         print("=" * 60)
         
-        blocked_count = len(self.report['skipped_assets'])
+        skipped_count = len(self.report['skipped_assets'])
         error_count = len(self.report['errors'])
         
-        print(f"  📊 Skipped assets: {blocked_count}")
+        print(f"  📊 Skipped assets: {skipped_count}")
         print(f"  ❌ Errors: {error_count}")
         
-        if blocked_count > 0:
+        # blocked_assets is the same as skipped_assets for Phase-1
+        self.report['blocked_assets'] = self.report['skipped_assets'].copy()
+        
+        if skipped_count > 0:
             print("\n  Top reasons for skipping:")
             reasons = {}
             for asset in self.report['skipped_assets']:
@@ -437,18 +441,6 @@ class Phase1EvacuationBot:
         3. Manual intervention on failed transfers
         4. Performance analysis
         """
-        # Calculate execution time
-        self.report['end_time'] = time.time()
-        self.report['execution_time_seconds'] = self.report['end_time'] - self.report['start_time']
-        
-        # Determine overall status
-        if self.report['errors']:
-            self.report['status'] = 'completed_with_errors'
-        elif self.report['summary']['failed_transfers'] > 0:
-            self.report['status'] = 'completed_with_failures'
-        else:
-            self.report['status'] = 'completed_successfully'
-        
         # Ensure results directory exists
         os.makedirs('results', exist_ok=True)
         
@@ -458,8 +450,6 @@ class Phase1EvacuationBot:
             json.dump(self.report, f, indent=2)
         
         print(f"\n💾 Report saved to: {report_path}")
-        print(f"   Status: {self.report['status']}")
-        print(f"   Execution time: {self.report['execution_time_seconds']:.2f}s")
     
     def run(self) -> None:
         """
@@ -495,11 +485,10 @@ class Phase1EvacuationBot:
             print("\n" + "=" * 60)
             print("✅ Phase-1 Evacuation Complete")
             print("=" * 60)
-            print(f"✅ Successful transfers: {self.report['summary']['successful_transfers']}")
-            print(f"❌ Failed transfers: {self.report['summary']['failed_transfers']}")
-            print(f"⏭️  Skipped assets: {self.report['summary']['skipped_assets']}")
-            print(f"💰 BTC transferred: {self.report['summary']['total_btc_transferred']}")
-            print(f"💰 ETH transferred: {self.report['summary']['total_eth_transferred']}")
+            print(f"✅ Wallets processed: {len(self.report['wallets_processed'])}")
+            print(f"✅ Simulated transfers: {len(self.report['simulated_transfers'])}")
+            print(f"⏭️  Skipped assets: {len(self.report['skipped_assets'])}")
+            print(f"❌ Errors: {len(self.report['errors'])}")
             print("=" * 60)
             
         except KeyboardInterrupt:
@@ -514,8 +503,62 @@ class Phase1EvacuationBot:
                 sys.exit(1)
 
 
+def parse_arguments() -> argparse.Namespace:
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description='Phase-1 Wallet Evacuation Bot',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Run Phase-1 evacuation in dry-run mode
+  python run_bot.py --phase-contract ops/phase1_evacuate.yaml --dry-run
+  
+  # Run with non-blocking mode
+  python run_bot.py --phase-contract ops/phase1_evacuate.yaml --non-blocking
+  
+  # Run in production mode (DANGEROUS - use with caution)
+  python run_bot.py --phase-contract ops/phase1_evacuate.yaml
+        """
+    )
+    
+    parser.add_argument(
+        '--phase-contract',
+        type=str,
+        default='ops/phase1_evacuate.yaml',
+        help='Path to Phase-1 contract file (default: ops/phase1_evacuate.yaml)'
+    )
+    
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Enable dry-run mode (no actual transfers)'
+    )
+    
+    parser.add_argument(
+        '--non-blocking',
+        action='store_true',
+        help='Enable non-blocking mode (continue on errors)'
+    )
+    
+    return parser.parse_args()
+
+
 def main():
     """Entry point for Phase-1 evacuation bot."""
+    # Parse CLI arguments
+    args = parse_arguments()
+    
+    # Override environment variables with CLI arguments
+    if args.phase_contract:
+        os.environ['PHASE_CONTRACT'] = args.phase_contract
+    
+    if args.dry_run:
+        os.environ['DRY_RUN'] = 'true'
+    
+    if args.non_blocking:
+        os.environ['NON_BLOCKING'] = 'true'
+    
+    # Create and run bot
     bot = Phase1EvacuationBot()
     bot.run()
 

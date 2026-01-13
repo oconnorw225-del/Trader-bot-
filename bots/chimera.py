@@ -35,11 +35,14 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime
 
 # Setup logging
+log_dir = Path('logs')
+log_dir.mkdir(exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('logs/chimera_coordinator.log'),
+        logging.FileHandler(log_dir / 'chimera_coordinator.log'),
         logging.StreamHandler(sys.stdout)
     ]
 )
@@ -249,7 +252,7 @@ Examples:
         '--mode',
         type=str,
         default='audit_only',
-        choices=['audit_only', 'forensic', 'analysis'],
+        choices=['audit_only', 'audit', 'forensic', 'analysis'],
         help='Execution mode (default: audit_only)'
     )
     
@@ -259,6 +262,26 @@ Examples:
         default='coordinator',
         choices=['coordinator', 'scanner', 'reporter'],
         help='Role in operation (default: coordinator)'
+    )
+    
+    parser.add_argument(
+        '--phase',
+        type=int,
+        default=None,
+        choices=[1, 2, 3],
+        help='Phase number (1, 2, or 3)'
+    )
+    
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Enable dry-run mode (no actual operations)'
+    )
+    
+    parser.add_argument(
+        '--non-blocking',
+        action='store_true',
+        help='Enable non-blocking mode (continue on errors)'
     )
     
     parser.add_argument(
@@ -325,6 +348,18 @@ def main():
     
     # Log arguments
     logger.info(f"Arguments: {vars(args)}")
+    
+    # Log phase if specified
+    if args.phase:
+        logger.info(f"Phase {args.phase} mode enabled")
+    
+    # Log dry-run mode
+    if args.dry_run:
+        logger.info("🔒 DRY-RUN mode enabled - no actual operations will be performed")
+    
+    # Log non-blocking mode
+    if args.non_blocking:
+        logger.info("⚡ NON-BLOCKING mode enabled - will continue on errors")
     
     # Safety warnings
     if not args.no_sign:

@@ -73,7 +73,7 @@ actions:
 #   Compatible with all Ethereum-based chains (Polygon, BSC, etc.)
 recovery_wallets:
   BTC: bc1q39s6vwj8h3mfe89eappsac60qjhmys3c6mclcp
-  ETH: 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb
+  ETH: "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
 
 # Failure policy - determines how the system handles errors
 # "continue" means: log the error, record it in the report, and move on
