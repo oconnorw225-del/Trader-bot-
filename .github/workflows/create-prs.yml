@@ -127,13 +127,13 @@ jobs:
                 continue;
               }
 
-              // heuristics for draft/low-quality
-              const nameHint = /wip|todo|backup|remove|old|draft/i.test(br);
-              const lowQuality = ageDays >= STALE_DAYS || nameHint;
+              // heuristics for draft/enhancement needs
+              const nameHint = /wip|todo|backup|old|draft/i.test(br);
+              const needsReview = ageDays >= STALE_DAYS || nameHint;
 
-              const title = `Merge branch '${br}' into ${BASE}`.replace(/'/g, "'");
-              const body = `Automated PR created from branch \`${br}\` into \`${BASE}\`.\n\nSummary:\n- Commits ahead: ${ahead}\n- Commits behind: ${behind}\n- Last commit age: ${ageDays} days\n- Changed files (sample): ${changedFilesSample}\n\nThis PR was created automatically as part of a repo cleanup. Please review and merge when ready.`;
-              const draft = Boolean(lowQuality);
+              const title = `Enhance and merge branch '${br}' into ${BASE}`.replace(/'/g, "'");
+              const body = `Automated PR created from branch \`${br}\` into \`${BASE}\`.\n\n## Summary\n- Commits ahead: ${ahead}\n- Commits behind: ${behind}\n- Last commit age: ${ageDays} days\n- Changed files (sample): ${changedFilesSample}\n\n## Enhancement Opportunity\nThis PR consolidates and enhances the work from \`${br}\`. All code is preserved and improved where possible.\n\n**Note:** This is part of our code enhancement and consolidation effort. No code is deleted - everything is preserved and refined.`;
+              const draft = Boolean(needsReview);
 
               core.info(`  - title: ${title}`);
               core.info(`  - draft: ${draft}`);

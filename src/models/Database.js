@@ -217,10 +217,12 @@ class BotState {
 
 /**
  * In-Memory Database Implementation
+ * Enhanced with archival functionality instead of deletion
  */
 class Database {
   constructor() {
     this.jobs = new Map();
+    this.archivedJobs = new Map(); // Archive instead of delete
     this.apiUsage = new Map();
     this.platformConnections = new Map();
     this.botState = null;
@@ -260,8 +262,62 @@ class Database {
     return job;
   }
 
+  /**
+   * Archive a job instead of deleting (soft delete)
+   * @param {string} id - Job ID
+   * @returns {boolean} True if archived, false if not found
+   */
+  async archiveJob(id) {
+    const job = this.jobs.get(id);
+    if (!job) {
+      return false;
+    }
+    
+    // Archive with metadata
+    const archived = {
+      ...job,
+      archived_at: new Date().toISOString(),
+      status: 'archived'
+    };
+    
+    this.archivedJobs.set(id, archived);
+    this.jobs.delete(id);
+    return true;
+  }
+
+  /**
+   * Restore an archived job
+   * @param {string} id - Job ID
+   * @returns {boolean} True if restored, false if not found
+   */
+  async restoreJob(id) {
+    const job = this.archivedJobs.get(id);
+    if (!job) {
+      return false;
+    }
+    
+    // Restore and remove archive metadata
+    const restored = { ...job };
+    delete restored.archived_at;
+    // Restore original status or set to available
+    if (restored.status === 'archived') {
+      restored.status = 'available';
+    }
+    
+    this.jobs.set(id, restored);
+    this.archivedJobs.delete(id);
+    return true;
+  }
+
+  /**
+   * Legacy method - now archives instead of deleting
+   * @deprecated Use archiveJob() for clarity
+   * @param {string} id - Job ID
+   * @returns {boolean} True if archived, false if not found
+   */
   async deleteJob(id) {
-    return this.jobs.delete(id);
+    console.warn('deleteJob is deprecated. Job will be archived instead of deleted.');
+    return this.archiveJob(id);
   }
 
   async findJobs(filter = {}) {
