@@ -1,5 +1,6 @@
 /**
  * Payment management module for handling transactions
+ * Enhanced with archival functionality for completed payments
  */
 
 import { isValidEthereumAddress } from '../shared/ethereumValidator.js';
@@ -10,6 +11,7 @@ class PaymentManager {
     this.transactions = [];
     this.balance = 0;
     this.pendingPayments = new Map();
+    this.completedPayments = new Map(); // Archive completed payments
     this.cryptoPayouts = [];
   }
 
@@ -129,6 +131,9 @@ class PaymentManager {
     payout.status = 'completed';
     payout.completedAt = new Date().toISOString();
     payout.txHash = `0x${Math.random().toString(16).slice(2)}${Math.random().toString(16).slice(2)}`;
+    
+    // Archive completed payout instead of just deleting from pending
+    this.completedPayments.set(payoutId, { ...payout, type: 'payout' });
     this.pendingPayments.delete(payoutId);
 
     return payout;
@@ -148,6 +153,9 @@ class PaymentManager {
 
     transaction.status = 'completed';
     transaction.completedAt = new Date().toISOString();
+    
+    // Archive completed payment instead of just deleting from pending
+    this.completedPayments.set(transactionId, { ...transaction, type: 'payment' });
     this.pendingPayments.delete(transactionId);
 
     return transaction;
@@ -171,6 +179,9 @@ class PaymentManager {
 
     transaction.status = 'cancelled';
     transaction.cancelledAt = new Date().toISOString();
+    
+    // Archive cancelled payment instead of just deleting
+    this.completedPayments.set(transactionId, { ...transaction, type: 'cancelled_payment' });
     this.pendingPayments.delete(transactionId);
 
     return true;
