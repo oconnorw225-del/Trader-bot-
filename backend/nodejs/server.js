@@ -485,12 +485,32 @@ app.put('/api/webhooks/:id', (req, res) => {
   }
 });
 
+// Archive webhook instead of deleting (soft delete for audit trail)
 app.delete('/api/webhooks/:id', (req, res) => {
-  const deleted = webhookManager.deleteWebhook(req.params.id);
-  if (!deleted) {
+  // Archive the webhook instead of permanently deleting
+  const webhook = webhookManager.getWebhook(req.params.id);
+  if (!webhook) {
     return res.status(404).json({ success: false, error: 'Webhook not found' });
   }
-  res.json({ success: true, message: 'Webhook deleted' });
+  
+  // Archive webhook with timestamp
+  const archivedWebhook = {
+    ...webhook,
+    archived_at: new Date().toISOString(),
+    status: 'archived'
+  };
+  
+  // Move to archived collection instead of deleting
+  const archived = webhookManager.archiveWebhook(req.params.id, archivedWebhook);
+  if (!archived) {
+    return res.status(500).json({ success: false, error: 'Failed to archive webhook' });
+  }
+  
+  res.json({ 
+    success: true, 
+    message: 'Webhook archived successfully (can be restored if needed)',
+    archived_id: req.params.id
+  });
 });
 
 // Fallback to index.html for client-side routing (must come after API routes)

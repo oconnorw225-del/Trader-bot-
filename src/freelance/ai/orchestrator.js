@@ -1,5 +1,6 @@
 /**
  * AI orchestration module for coordinating AI tasks
+ * Enhanced with job archival for analytics and debugging
  */
 
 class AIOrchestrator {
@@ -7,6 +8,7 @@ class AIOrchestrator {
     this.models = new Map();
     this.tasks = [];
     this.activeJobs = new Map();
+    this.completedJobs = new Map(); // Archive completed jobs
     // Add configurable limit to prevent unbounded memory growth
     this.maxTasks = 1000;
   }
@@ -88,7 +90,15 @@ class AIOrchestrator {
       task.error = error.message;
       throw error;
     } finally {
-      // Always cleanup active job regardless of success or failure
+      // Archive completed/failed job instead of just deleting
+      const job = this.activeJobs.get(task.id);
+      if (job) {
+        this.completedJobs.set(task.id, {
+          ...job,
+          completedAt: new Date().toISOString(),
+          finalStatus: task.status
+        });
+      }
       this.activeJobs.delete(task.id);
     }
   }
@@ -189,6 +199,13 @@ class AIOrchestrator {
       return false;
     }
     task.status = 'cancelled';
+    task.cancelledAt = new Date().toISOString();
+    
+    // Archive cancelled task instead of just deleting
+    this.completedJobs.set(taskId, {
+      ...task,
+      finalStatus: 'cancelled'
+    });
     this.activeJobs.delete(taskId);
     return true;
   }

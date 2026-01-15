@@ -94,7 +94,14 @@ class SecurePayments {
     const event = this.stripe.webhooks.constructEvent(rawBody, signature, Config.stripe.webhookSecret);
     if (this.processedPayments.has(event.id)) { Logger.warn('Duplicate webhook', { eventId: event.id }); return null; }
     this.processedPayments.add(event.id);
-    if (this.processedPayments.size > 1000) this.processedPayments.delete(this.processedPayments.values().next().value);
+    // Archive old payments instead of deleting - move to archived set for audit trail
+    if (this.processedPayments.size > 1000) {
+      const oldestPayment = this.processedPayments.values().next().value;
+      if (!this.archivedPayments) this.archivedPayments = new Set();
+      this.archivedPayments.add(oldestPayment);
+      this.processedPayments.delete(oldestPayment);
+      Logger.info('Payment archived for audit trail', { paymentId: oldestPayment });
+    }
     return event;
   }
 }
@@ -124,7 +131,16 @@ class SecureAIHandler {
     if (!response.ok) throw new Error(`AI API error: ${response.status}`);
     const result = await response.json();
     this.requestCache.set(cacheKey, result);
-    setTimeout(() => this.requestCache.delete(cacheKey), 3600000);
+    // Archive cache entries after TTL instead of just deleting
+    setTimeout(() => {
+      const cachedData = this.requestCache.get(cacheKey);
+      if (cachedData) {
+        // Move to archived cache for analysis and debugging
+        if (!this.archivedCache) this.archivedCache = new Map();
+        this.archivedCache.set(cacheKey, { data: cachedData, archivedAt: Date.now() });
+        this.requestCache.delete(cacheKey);
+      }
+    }, 3600000);
     this.trackRateLimit(model);
     Logger.info('AI task completed', { model });
     return result;
@@ -196,11 +212,29 @@ class TaskManager extends EventEmitter {
   }
   cleanup() {
     const now = Date.now();
-    let removed = 0;
+    let archived = 0;
+    // Archive completed tasks instead of deleting for audit and analytics
+    if (!this.archivedTasks) this.archivedTasks = new Map();
+    
     for (const [taskId, task] of this.tasks) {
-      if (now - task.createdAt > 86400000 && task.status === 'completed') { this.tasks.delete(taskId); removed++; }
+      if (now - task.createdAt > 86400000 && task.status === 'completed') {
+        // Archive task with metadata
+        this.archivedTasks.set(taskId, {
+          ...task,
+          archivedAt: now,
+          archivedReason: 'completed_and_expired'
+        });
+        this.tasks.delete(taskId);
+        archived++;
+      }
     }
-    if (removed > 0) Logger.info('Cleanup done', { removed });
+    
+    if (archived > 0) {
+      Logger.info('Tasks archived for historical analysis', { 
+        archived, 
+        totalArchived: this.archivedTasks.size 
+      });
+    }
   }
 }
 

@@ -3,10 +3,12 @@ import axios from 'axios';
 /**
  * Webhook Manager for real-time event notifications
  * Supports automatic retries with exponential backoff
+ * Enhanced with archival functionality instead of deletion
  */
 class WebhookManager {
   constructor() {
     this.webhooks = new Map();
+    this.archivedWebhooks = new Map(); // Archive instead of delete
     this.eventHistory = [];
     this.maxHistorySize = 1000;
     this.maxRetries = 3;
@@ -51,12 +53,12 @@ class WebhookManager {
   }
 
   /**
-   * Get a specific webhook by ID
+   * Get a specific webhook by ID from either active or archived collections
    * @param {string} id - Webhook ID
    * @returns {object|null} Webhook data or null if not found
    */
   getWebhook(id) {
-    return this.webhooks.get(id) || null;
+    return this.webhooks.get(id) || this.archivedWebhooks.get(id) || null;
   }
 
   /**
@@ -96,12 +98,59 @@ class WebhookManager {
   }
 
   /**
-   * Delete a webhook
+   * Archive a webhook instead of deleting (soft delete)
    * @param {string} id - Webhook ID
-   * @returns {boolean} True if deleted, false if not found
+   * @param {object} archivedData - Optional archived webhook data
+   * @returns {boolean} True if archived, false if not found
+   */
+  archiveWebhook(id, archivedData = null) {
+    const webhook = this.webhooks.get(id);
+    if (!webhook) {
+      return false;
+    }
+    
+    // Archive with metadata
+    const archived = archivedData || {
+      ...webhook,
+      archived_at: new Date().toISOString(),
+      status: 'archived'
+    };
+    
+    this.archivedWebhooks.set(id, archived);
+    this.webhooks.delete(id);
+    return true;
+  }
+
+  /**
+   * Restore an archived webhook
+   * @param {string} id - Webhook ID
+   * @returns {boolean} True if restored, false if not found
+   */
+  restoreWebhook(id) {
+    const webhook = this.archivedWebhooks.get(id);
+    if (!webhook) {
+      return false;
+    }
+    
+    // Restore and remove archive metadata
+    const restored = { ...webhook };
+    delete restored.archived_at;
+    delete restored.status;
+    
+    this.webhooks.set(id, restored);
+    this.archivedWebhooks.delete(id);
+    return true;
+  }
+
+  /**
+   * Legacy method - now archives instead of deleting
+   * @deprecated Use archiveWebhook() for clarity
+   * @param {string} id - Webhook ID
+   * @returns {boolean} True if archived, false if not found
    */
   deleteWebhook(id) {
-    return this.webhooks.delete(id);
+    console.warn('deleteWebhook is deprecated. Webhook will be archived instead of deleted.');
+    return this.archiveWebhook(id);
   }
 
   /**

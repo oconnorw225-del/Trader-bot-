@@ -80,13 +80,13 @@ ${conflict_status}
 - [ ] Code follows project standards
 - [ ] Tests pass (if applicable)
 - [ ] No merge conflicts (or conflicts have been resolved)
-- [ ] Branch can be safely deleted after merge
+- [ ] Branch will be archived after merge (not deleted)
 
 ## Related
-Part of branch consolidation effort tracked in #151
+Part of branch consolidation and enhancement effort tracked in #151
 
 ---
-*This PR was created as part of the automated branch consolidation process.*
+*This PR was created as part of the automated branch consolidation process. All code is preserved and enhanced.*
 EOF
 }
 
@@ -200,10 +200,16 @@ main() {
     # Update report file
     echo "Updating report..."
     if grep -q "PRs Created:" .github/branch-cleanup/report.md; then
-        sed -i.bak "s/PRs Created:.*/PRs Created: (run script to get count)/" .github/branch-cleanup/report.md && rm -f .github/branch-cleanup/report.md.bak
+        # Create backup before modification
+        cp .github/branch-cleanup/report.md .github/branch-cleanup/report.md.backup-$(date +%Y%m%d-%H%M%S)
+        sed -i.bak "s/PRs Created:.*/PRs Created: (run script to get count)/" .github/branch-cleanup/report.md
+        # Keep backup file for history instead of removing
+        mv .github/branch-cleanup/report.md.bak .github/branch-cleanup/report.md.backup-latest || true
     fi
     if grep -q "Last Updated:" .github/branch-cleanup/report.md; then
-        sed -i.bak "s/Last Updated:.*/Last Updated: $(date +%Y-%m-%d)/" .github/branch-cleanup/report.md && rm -f .github/branch-cleanup/report.md.bak
+        sed -i.bak "s/Last Updated:.*/Last Updated: $(date +%Y-%m-%d)/" .github/branch-cleanup/report.md
+        # Keep backup file for history instead of removing
+        mv .github/branch-cleanup/report.md.bak .github/branch-cleanup/report.md.backup-latest || true
     fi
     
     echo -e "${GREEN}Done!${NC}"
