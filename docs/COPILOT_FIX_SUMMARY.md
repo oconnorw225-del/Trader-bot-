@@ -90,19 +90,7 @@ const isDeletionOnly =
 - Best Practices
 - Troubleshooting
 
-### 4. Testing & Validation Documentation
-
-**File:** `docs/DELETION_PR_TESTING.md`
-
-**Content:**
-- Test scenarios and expected behaviors
-- Workflow logic explanation
-- Manual testing steps
-- Validation checklist
-- Success criteria
-- Troubleshooting guide
-
-### 5. README Updates
+### 4. README Updates
 
 **File:** `README.md`
 
@@ -169,16 +157,10 @@ permissions:
 
 ## Files Created/Modified
 
-### Created Files (4)
-1. `.github/workflows/deletion-pr-handler.yml` (108 lines)
-2. `.github/pull_request_template.md` (60 lines)
-3. `docs/COPILOT_REVIEW_GUIDE.md` (175 lines)
-4. `docs/DELETION_PR_TESTING.md` (180 lines)
+### Modified Files
+1. `README.md` - Updated documentation references
 
-### Modified Files (1)
-1. `README.md` (+7 lines)
-
-**Total:** 530 lines of documentation and automation added
+**Note:** Previous deletion-related files have been removed from the repository.
 
 ## How It Works (User Flow)
 

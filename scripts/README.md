@@ -61,28 +61,9 @@ bash scripts/create-branch-prs.sh
 - `cleanup`
 - `high-priority`
 
-### `analyze-branches.sh`
-
-**Purpose:** Analyze repository branches for conflicts and status.
-
-**Usage:**
-```bash
-bash scripts/analyze-branches.sh
-```
-
-**What it does:**
-- Lists all remote branches
-- Compares each branch with main
-- Identifies merge conflicts
-- Shows commits ahead/behind
-- Generates analysis report
-
 ## Other Utility Scripts
 
 ### Branch Management
-- `cleanup-branches.sh` - Remove merged or obsolete branches
-- `consolidate-branches.sh` - Consolidate multiple branches
-- `cleanup-duplicate-branches.sh` - Find and remove duplicate branches
 - `create-fix-branches.sh` - Create fix branches for conflicts
 
 ### Analysis & Monitoring
@@ -225,7 +206,6 @@ git branch -r  # List remote branches
 
 For more detailed information:
 - [PR Creation Guide](../docs/PR_CREATION_GUIDE.md)
-- [Branch Cleanup Guide](../BRANCH_CLEANUP_GUIDE.md)
 - [Repository README](../README.md)
 
 ## Contributing

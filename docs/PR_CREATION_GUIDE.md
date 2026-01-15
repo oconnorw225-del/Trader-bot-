@@ -218,8 +218,6 @@ These can be triggered via GitHub Actions:
 
 - `scripts/generate-pr-data.sh` - Generate PR data for current branch
 - `scripts/create-branch-prs.sh` - Bulk create PRs from branch list
-- `scripts/analyze-branches.sh` - Analyze branch status and conflicts
-- `scripts/cleanup-branches.sh` - Clean up merged/obsolete branches
 
 ## Repository Structure
 
