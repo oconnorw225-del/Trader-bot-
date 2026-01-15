@@ -179,22 +179,54 @@ describe('Webhook Manager', () => {
       expect(result).toBeNull();
     });
 
-    test('should delete webhook', () => {
+    test('should archive webhook (soft delete)', () => {
       const registered = webhookManager.registerWebhook({
         url: 'https://example.com/webhook',
         events: ['order.placed']
       });
 
-      const deleted = webhookManager.deleteWebhook(registered.id);
+      const archived = webhookManager.deleteWebhook(registered.id);
 
-      expect(deleted).toBe(true);
-      expect(webhookManager.getWebhook(registered.id)).toBeNull();
+      expect(archived).toBe(true);
+      // Webhook is still retrievable but marked as archived
+      const webhook = webhookManager.getWebhook(registered.id);
+      expect(webhook).not.toBeNull();
+      expect(webhook.status).toBe('archived');
+      expect(webhook.archived_at).toBeDefined();
     });
 
     test('should return false when deleting non-existent webhook', () => {
       const deleted = webhookManager.deleteWebhook('non-existent-id');
 
       expect(deleted).toBe(false);
+    });
+
+    test('should restore archived webhook', () => {
+      const registered = webhookManager.registerWebhook({
+        url: 'https://example.com/webhook',
+        events: ['order.placed']
+      });
+
+      // Archive the webhook
+      webhookManager.archiveWebhook(registered.id);
+      
+      // Verify it's archived
+      let webhook = webhookManager.getWebhook(registered.id);
+      expect(webhook.status).toBe('archived');
+
+      // Restore the webhook
+      const restored = webhookManager.restoreWebhook(registered.id);
+      expect(restored).toBe(true);
+
+      // Verify it's restored and active
+      webhook = webhookManager.getWebhook(registered.id);
+      expect(webhook.status).not.toBe('archived');
+      expect(webhook.archived_at).toBeUndefined();
+    });
+
+    test('should return false when restoring non-existent webhook', () => {
+      const restored = webhookManager.restoreWebhook('non-existent-id');
+      expect(restored).toBe(false);
     });
   });
 

@@ -53,12 +53,12 @@ class WebhookManager {
   }
 
   /**
-   * Get a specific webhook by ID
+   * Get a specific webhook by ID from either active or archived collections
    * @param {string} id - Webhook ID
    * @returns {object|null} Webhook data or null if not found
    */
   getWebhook(id) {
-    return this.webhooks.get(id) || null;
+    return this.webhooks.get(id) || this.archivedWebhooks.get(id) || null;
   }
 
   /**
@@ -119,15 +119,6 @@ class WebhookManager {
     this.archivedWebhooks.set(id, archived);
     this.webhooks.delete(id);
     return true;
-  }
-
-  /**
-   * Get a webhook from either active or archived collections
-   * @param {string} id - Webhook ID
-   * @returns {object|null} Webhook if found, null otherwise
-   */
-  getWebhook(id) {
-    return this.webhooks.get(id) || this.archivedWebhooks.get(id) || null;
   }
 
   /**
