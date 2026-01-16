@@ -454,36 +454,27 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🔄 Repository Consolidation
 
-This repository supports automated consolidation of best parts from related repositories via GitHub Actions.
+Automated consolidation of best parts from:
+- ndax-quantum-engine
+- quantum-engine-dashb
+- shadowforge-ai-trader
+- repository-web-app
+- The-new-ones
 
-### Source Repositories
-- [ndax-quantum-engine](https://github.com/oconnorw225-del/ndax-quantum-engine) - API and documentation
-- [quantum-engine-dashb](https://github.com/oconnorw225-del/quantum-engine-dashb) - Frontend components and workflows
-- [shadowforge-ai-trader](https://github.com/oconnorw225-del/shadowforge-ai-trader) - Backend strategy and tests
-- [repository-web-app](https://github.com/oconnorw225-del/repository-web-app) - Web app frontend and workflows
-- [The-new-ones](https://github.com/oconnorw225-del/The-new-ones) - Additional components
+### How To Use
 
-### How To Use Consolidation
+1. Push this structure to GitHub.
+2. Go to Actions > Consolidate Best Parts > Run workflow.
+3. Review and use your unified repo!
 
-1. Go to **Actions** tab > **Consolidate Best Parts**
-2. Click **Run workflow**
-3. The workflow will:
-   - Clone all source repositories
-   - Create backups in `backups/` directory
-   - Consolidate API, frontend, backend, docs, workflows, and tests
-   - Commit and push the consolidated code
-
-### Consolidated Directory Structure
-```
-├── api/         # Consolidated APIs from ndax-quantum-engine
-├── backend/     # Backend logic from shadowforge-ai-trader
-├── frontend/    # UI components from quantum-engine-dashb and repository-web-app
-├── docs/        # Documentation from ndax-quantum-engine
-├── tests/       # Test suites from shadowforge-ai-trader
-├── workflows/   # GitHub Actions workflows
-├── backups/     # Archived source repository backups
-└── automation/  # Consolidation scripts
-```
+### Contents
+- `/api` — consolidated APIs
+- `/backend` — backend logic
+- `/frontend` — UI components
+- `/docs` — documentation
+- `/tests` — test suites
+- `/automation` — scripts for consolidation
+- `/backups` — archived original sources
 
 ## 🔀 Branch Management
 
