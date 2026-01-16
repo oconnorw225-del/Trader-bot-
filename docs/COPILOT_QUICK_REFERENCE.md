@@ -50,9 +50,7 @@
 ## Quick Links
 
 📚 **Full Documentation**: [docs/COPILOT_REVIEW_GUIDE.md](COPILOT_REVIEW_GUIDE.md)  
-🧪 **Testing Guide**: [docs/DELETION_PR_TESTING.md](DELETION_PR_TESTING.md)  
 📋 **Implementation Summary**: [docs/COPILOT_FIX_SUMMARY.md](COPILOT_FIX_SUMMARY.md)  
-🔧 **Workflow File**: [.github/workflows/deletion-pr-handler.yml](../.github/workflows/deletion-pr-handler.yml)  
 📝 **PR Template**: [.github/pull_request_template.md](../.github/pull_request_template.md)
 
 ## Key Points

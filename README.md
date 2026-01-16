@@ -198,7 +198,6 @@ ndax-quantum-engine/
 - **[QUICKSTART_PR.md](QUICKSTART_PR.md)** - 🆕 **Quick start for creating pull requests**
 - **[docs/PR_CREATION_GUIDE.md](docs/PR_CREATION_GUIDE.md)** - 🆕 **Complete PR creation guide**
 - **[scripts/README.md](scripts/README.md)** - 🆕 **PR automation scripts documentation**
-- **[BRANCH_CLEANUP_GUIDE.md](BRANCH_CLEANUP_GUIDE.md)** - Branch consolidation guide
 
 ### 🔑 Key Features Documentation
 All features are **fully implemented** and ready to use:
